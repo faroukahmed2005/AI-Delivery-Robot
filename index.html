@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>AI Delivery Robot — City Map</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #87ceeb;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #hud {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #topbar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 12px 20px;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, transparent 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .t-title {
+            font-size: 13px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #fff;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.66);
+        }
+
+        .t-sub {
+            font-size: 9px;
+            letter-spacing: 0.15em;
+            color: #ccc;
+            margin-top: 2px;
+        }
+
+        #status {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .si {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 9px;
+            letter-spacing: 0.1em;
+            color: #ddd;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .dg {
+            background: #44ff88;
+            box-shadow: 0 0 5px #44ff88;
+        }
+
+        .dy {
+            background: #ffcc22;
+            box-shadow: 0 0 5px #ffcc22;
+        }
+
+        .db {
+            background: #66ccff;
+            box-shadow: 0 0 5px #66ccff;
+        }
+
+        #legend {
+            position: absolute;
+            bottom: 24px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.88);
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 14px 18px;
+            min-width: 200px;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        #control-panel {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            width: 340px;
+            background: rgba(20, 24, 30, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            padding: 12px;
+            color: #f0f4f8;
+            pointer-events: auto;
+            backdrop-filter: blur(4px);
+        }
+
+        #control-panel h3 {
+            font-size: 13px;
+            margin-bottom: 10px;
+            letter-spacing: 0.06em;
+        }
+
+        .ctrl-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .ctrl-row label {
+            font-size: 11px;
+        }
+
+        .ctrl-row select {
+            width: 190px;
+            padding: 5px 8px;
+            border-radius: 6px;
+            border: 1px solid #778899;
+            background: #0f1419;
+            color: #e6eef5;
+            font-family: inherit;
+            font-size: 11px;
+        }
+
+        .ctrl-actions {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+            flex-direction: column;
+        }
+
+        .ctrl-actions button {
+            flex: 1;
+            border: 1px solid #aac2d8;
+            background: #1a2a38;
+            color: #f0f4f8;
+            border-radius: 6px;
+            padding: 6px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: inherit;
+        }
+
+        .ctrl-actions button:hover {
+            background: #22384d;
+        }
+
+        .ctrl-stats {
+            font-size: 10px;
+            line-height: 1.5;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 8px;
+        }
+
+        #ordersList {
+            margin-top: 8px;
+            max-height: 240px;
+            overflow: auto;
+            display: grid;
+            gap: 6px;
+        }
+
+        .order-item {
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 6px;
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .status-red {
+            color: #ff5a5a;
+        }
+
+        .status-yellow {
+            color: #ffd45c;
+        }
+
+        .status-green {
+            color: #63e38d;
+        }
+
+        #legend h3 {
+            font-size: 9px;
+            letter-spacing: 0.25em;
+            color: #444;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 6px;
+        }
+
+        .li {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-bottom: 6px;
+            font-size: 10px;
+            color: #333;
+        }
+
+        .sw {
+            width: 26px;
+            height: 7px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .sg {
+            background: #4a8a2a;
+        }
+
+        .sr {
+            background: #222;
+            border: 1px solid #00bb44;
+        }
+
+        .sr2 {
+            background: #e08030;
+        }
+
+        .ss {
+            background: #c0b49a;
+        }
+
+        .sa {
+            background: #333;
+        }
+
+        .sh {
+            background: #d4b896;
+        }
+
+        .sc {
+            background: #c87848;
+        }
+
+        .co {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-color: rgba(255, 255, 255, 0.6);
+            border-style: solid;
+        }
+
+        .co.tl {
+            top: 6px;
+            left: 6px;
+            border-width: 1px 0 0 1px;
+        }
+
+        .co.tr {
+            top: 6px;
+            right: 6px;
+            border-width: 1px 1px 0 0;
+        }
+
+        .co.bl {
+            bottom: 6px;
+            left: 6px;
+            border-width: 0 0 1px 1px;
+        }
+
+        .co.br {
+            bottom: 6px;
+            right: 6px;
+            border-width: 0 1px 1px 0;
+        }
+
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: #f0f4f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.7s ease;
+        }
+
+        .lt {
+            font-size: 12px;
+            letter-spacing: 0.35em;
+            color: #226699;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .ls {
+            font-size: 9px;
+            letter-spacing: 0.18em;
+            color: #99aacc;
+            margin-bottom: 36px;
+        }
+
+        #bar-wrap {
+            width: 180px;
+            height: 2px;
+            background: #dde;
+            border-radius: 1px;
+            overflow: hidden;
+        }
+
+        #bar {
+            height: 100%;
+            background: #226699;
+            width: 0%;
+            transition: width 0.25s ease;
+        }
+
+        /* ── Tree Panel ──────────────────────────────── */
+        #tree-panel {
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            width: 260px;
+            max-height: calc(100vh - 28px);
+            background: rgba(10, 14, 20, 0.92);
+            border: 1px solid rgba(100, 200, 255, 0.25);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: #c8e0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            pointer-events: auto;
+            backdrop-filter: blur(6px);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            /* Prevent any child from expanding the panel width */
+            overflow: hidden;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+
+
+        #tree-panel h4 {
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #64c8ff;
+            border-bottom: 1px solid rgba(100, 200, 255, 0.2);
+            padding-bottom: 6px;
+            margin: 0;
+            /* Title must not push panel wider */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #tree-content {
+            /* Enable full scrolling in both directions */
+            overflow: auto;
+            flex: 1;
+            /* Use block layout so rows stack and width is constrained */
+            display: block;
+            min-width: 0;
+            scroll-behavior: smooth;
+            /* Custom scrollbar styling */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(100, 200, 255, 0.3) transparent;
+        }
+
+        #tree-content::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        #tree-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #tree-content::-webkit-scrollbar-thumb {
+            background: rgba(100, 200, 255, 0.3);
+            border-radius: 2px;
+        }
+
+        .tree-node {
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            /* Allow nodes to expand horizontally to enable scrolling */
+            width: max-content;
+            min-width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* The whitespace prefix span (indent + branch chars) */
+        .tree-prefix {
+            white-space: pre;
+            flex-shrink: 0;
+            color: rgba(100, 200, 255, 0.35);
+            font-size: 10px;
+        }
+
+        /* Node label — truncates if too long */
+        .tree-label {
+            flex-shrink: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tree-node.current {
+            background: rgba(100, 200, 255, 0.15);
+            border-left: 2px solid #64c8ff;
+        }
+
+        .tree-node.visited {
+            color: #7aa8c0;
+        }
+
+        .tree-node.path {
+            background: rgba(0, 238, 100, 0.12);
+            border-left: 2px solid #00ee66;
+            color: #00ee66;
+            font-weight: bold;
+        }
+
+        .tree-node.goal {
+            background: rgba(80, 255, 140, 0.12);
+            border-left: 2px solid #50ff8c;
+            color: #50ff8c;
+        }
+
+        .tree-arrow {
+            color: rgba(100, 200, 255, 0.4);
+            font-size: 9px;
+            flex-shrink: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #tree-status {
+            font-size: 10px;
+            color: #88aacc;
+            border-top: 1px solid rgba(100, 200, 255, 0.15);
+            padding-top: 6px;
+            /* Long paths must wrap, not stretch the panel */
+            word-break: break-all;
+            overflow-wrap: anywhere;
+            white-space: normal;
+        }
+
+        .robot-label {
+            position: absolute;
+            top: 0; left: 0;
+            background: rgba(10, 15, 25, 0.85);
+            color: #64c8ff;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            pointer-events: none;
+            white-space: nowrap;
+            z-index: 1000;
+            border: 1px solid rgba(100, 200, 255, 0.4);
+            text-shadow: 0 1px 2px #000;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transform: translate(-50%, -100%);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="loader">
+        <div class="lt">AI Delivery Robot</div>
+        <div class="ls">Loading City Map…</div>
+        <div id="bar-wrap">
+            <div id="bar"></div>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <div id="hud">
+        <div id="control-panel">
+            <h3>Robot Orders</h3>
+            <div class="ctrl-row">
+                <label>Location</label>
+                <select id="locationSelect"></select>
+            </div>
+            <div class="ctrl-row">
+                <label>Destination</label>
+                <select id="destinationSelect"></select>
+            </div>
+            <div class="ctrl-actions">
+                <button id="createOrderBtn">Create Order</button>
+                <button id="astarBtn" disabled>A*</button>
+                <button id="bfsBtn" disabled>BFS</button>
+                <button id="dfsBtn" disabled>DFS</button>
+                <button id="solveBtn" disabled>Try to solve (Manual)</button>
+            </div>
+            <div class="ctrl-stats">
+                <div><strong>System:</strong> <span id="ordersHint">Create an order, then click connected path
+                        segments.</span></div>
+                <div id="ordersList">No orders yet.</div>
+            </div>
+        </div>
+        <div id="robot-status-label" class="robot-label" style="display:none;"></div>
+    </div>
+
+    <!-- Tree Panel -->
+    <div id="tree-panel">
+        <h4 id="tree-title">&#9679; Tree</h4>
+        <div id="tree-content"><span style="color:#556677">Waiting…</span></div>
+        <div id="tree-status">—</div>
+    </div>
+
+    <!-- Three.js core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <!-- Buildings -->
+    <script src="./JS/grass.js"></script>
+    <script src="./JS/cafe.js"></script>
+    <script src="./JS/cafe2.js"></script>
+    <script src="./JS/cafe3.js"></script>
+    <script src="./JS/cafe4.js"></script>
+    <script src="./JS/restaurant1.js"></script>
+    <script src="./JS/restaurant2.js"></script>
+    <script src="./JS/restaurant3.js"></script>
+    <script src="./JS/restaurant4.js"></script>
+    <!-- Houses (one file per house — edit individually) -->
+    <script src="./JS/houseA1.js"></script>
+    <script src="./JS/houseA2.js"></script>
+    <script src="./JS/houseA3.js"></script>
+    <script src="./JS/houseB1.js"></script>
+    <script src="./JS/houseB2.js"></script>
+    <script src="./JS/houseB3.js"></script>
+    <script src="./JS/houseC1.js"></script>
+    <script src="./JS/houseC2.js"></script>
+    <script src="./JS/houseC3.js"></script>
+    <script src="./JS/houseD1.js"></script>
+    <script src="./JS/houseD2.js"></script>
+    <script src="./JS/houseD3.js"></script>
+
+    <script src="./JS/pawns.js"></script>
+
+    <!-- Map -->
+    <script src="./JS/base.js"></script>
+    <script src="./JS/paths.js"></script>
+    <script src="./JS/walls.js"></script>
+
+    <!-- Robot system -->
+    <script src="./JS/robot_path.js"></script>
+    <script src="./JS/algorithm.js"></script>
+    <script src="./JS/robot.js"></script>
+
+    <script>
+        // ── Loading bar ──────────────────────────────────────────
+        const bar = document.getElementById('bar');
+        const loader = document.getElementById('loader');
+        let p = 0;
+        const t = setInterval(() => {
+            p += Math.random() * 18 + 5;
+            if (p >= 100) {
+                p = 100;
+                clearInterval(t);
+                setTimeout(() => {
+                    loader.style.opacity = '0';
+                    setTimeout(() => loader.style.display = 'none', 700);
+                }, 200);
+            }
+            bar.style.width = p + '%';
+        }, 100);
+
+        // ── Init ─────────────────────────────────────────────────
+        window.addEventListener('load', () => {
+            const container = document.getElementById('canvas-container');
+            const { scene } = initBaseMap(container);
+            buildPaths(scene);
+            buildRobotPath(scene);
+            initRobots(scene);
+        });
+    </script>
+</body>
+
+</html>
