@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>AI Delivery Robot — City Map</title>
+    <title>AI Delivery Robot</title>
     <style>
         * {
             margin: 0;
@@ -13,18 +13,18 @@
         }
 
         body {
+            overflow: hidden;
             background: #87ceeb;
             font-family: 'Courier New', monospace;
-            overflow: hidden;
         }
 
         #canvas-container {
+            z-index: 1;
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 1;
         }
 
         canvas {
@@ -32,52 +32,54 @@
         }
 
         #hud {
-            position: fixed;
             inset: 0;
-            pointer-events: none;
             z-index: 10;
+            position: fixed;
+            pointer-events: none;
         }
 
         #topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             padding: 12px 20px;
             background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, transparent 100%);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
         }
 
         .t-title {
+            color: #fff;
             font-size: 13px;
             letter-spacing: 0.2em;
             text-transform: uppercase;
-            color: #fff;
             text-shadow: 0 1px 4px rgba(0, 0, 0, 0.66);
         }
 
         .t-sub {
-            font-size: 9px;
-            letter-spacing: 0.15em;
             color: #ccc;
             margin-top: 2px;
+            font-size: 9px;
+            letter-spacing: 0.15em;
         }
 
         #status {
-            display: flex;
             gap: 14px;
+            display: flex;
             align-items: center;
         }
 
         .si {
+            gap: 5px;
             display: flex;
             align-items: center;
-            gap: 5px;
+
+            color: #ddd;
             font-size: 9px;
             letter-spacing: 0.1em;
-            color: #ddd;
         }
 
         .dot {
@@ -343,7 +345,6 @@
             transition: width 0.25s ease;
         }
 
-        /* ── Tree Panel ──────────────────────────────── */
         #tree-panel {
             position: fixed;
             top: 14px;
@@ -363,7 +364,6 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            /* Prevent any child from expanding the panel width */
             overflow: hidden;
             min-width: 0;
             box-sizing: border-box;
@@ -379,22 +379,18 @@
             border-bottom: 1px solid rgba(100, 200, 255, 0.2);
             padding-bottom: 6px;
             margin: 0;
-            /* Title must not push panel wider */
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         #tree-content {
-            /* Enable full scrolling in both directions */
-            overflow: auto;
             flex: 1;
-            /* Use block layout so rows stack and width is constrained */
-            display: block;
             min-width: 0;
-            scroll-behavior: smooth;
-            /* Custom scrollbar styling */
+            display: block;
+            overflow: auto;
             scrollbar-width: thin;
+            scroll-behavior: smooth;
             scrollbar-color: rgba(100, 200, 255, 0.3) transparent;
         }
 
@@ -408,8 +404,8 @@
         }
 
         #tree-content::-webkit-scrollbar-thumb {
-            background: rgba(100, 200, 255, 0.3);
             border-radius: 2px;
+            background: rgba(100, 200, 255, 0.3);
         }
 
         .tree-node {
@@ -419,14 +415,12 @@
             padding: 2px 4px;
             border-radius: 4px;
             transition: background 0.2s;
-            /* Allow nodes to expand horizontally to enable scrolling */
             width: max-content;
             min-width: 100%;
             box-sizing: border-box;
             overflow: hidden;
         }
 
-        /* The whitespace prefix span (indent + branch chars) */
         .tree-prefix {
             white-space: pre;
             flex-shrink: 0;
@@ -434,7 +428,6 @@
             font-size: 10px;
         }
 
-        /* Node label — truncates if too long */
         .tree-label {
             flex-shrink: 1;
             min-width: 0;
@@ -444,8 +437,8 @@
         }
 
         .tree-node.current {
-            background: rgba(100, 200, 255, 0.15);
             border-left: 2px solid #64c8ff;
+            background: rgba(100, 200, 255, 0.15);
         }
 
         .tree-node.visited {
@@ -453,26 +446,26 @@
         }
 
         .tree-node.path {
-            background: rgba(0, 238, 100, 0.12);
-            border-left: 2px solid #00ee66;
             color: #00ee66;
             font-weight: bold;
+            border-left: 2px solid #00ee66;
+            background: rgba(0, 238, 100, 0.12);
         }
 
         .tree-node.goal {
-            background: rgba(80, 255, 140, 0.12);
-            border-left: 2px solid #50ff8c;
             color: #50ff8c;
+            border-left: 2px solid #50ff8c;
+            background: rgba(80, 255, 140, 0.12);
         }
 
         .tree-arrow {
-            color: rgba(100, 200, 255, 0.4);
+            min-width: 0;
             font-size: 9px;
             flex-shrink: 1;
-            min-width: 0;
             overflow: hidden;
-            text-overflow: ellipsis;
             white-space: nowrap;
+            text-overflow: ellipsis;
+            color: rgba(100, 200, 255, 0.4);
         }
 
         #tree-status {
@@ -480,7 +473,6 @@
             color: #88aacc;
             border-top: 1px solid rgba(100, 200, 255, 0.15);
             padding-top: 6px;
-            /* Long paths must wrap, not stretch the panel */
             word-break: break-all;
             overflow-wrap: anywhere;
             white-space: normal;
@@ -545,19 +537,16 @@
         <div id="robot-status-label" class="robot-label" style="display:none;"></div>
     </div>
 
-    <!-- Tree Panel -->
     <div id="tree-panel">
         <h4 id="tree-title">&#9679; Tree</h4>
         <div id="tree-content"><span style="color:#556677">Waiting…</span></div>
         <div id="tree-status">—</div>
     </div>
 
-    <!-- Three.js core -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>                   <!--   3D    -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>    <!--  Camera -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>        <!--  Model  -->
 
-    <!-- Buildings -->
     <script src="./JS/grass.js"></script>
     <script src="./JS/cafe.js"></script>
     <script src="./JS/cafe2.js"></script>
@@ -567,7 +556,6 @@
     <script src="./JS/restaurant2.js"></script>
     <script src="./JS/restaurant3.js"></script>
     <script src="./JS/restaurant4.js"></script>
-    <!-- Houses (one file per house — edit individually) -->
     <script src="./JS/houseA1.js"></script>
     <script src="./JS/houseA2.js"></script>
     <script src="./JS/houseA3.js"></script>
@@ -583,12 +571,10 @@
 
     <script src="./JS/pawns.js"></script>
 
-    <!-- Map -->
     <script src="./JS/base.js"></script>
     <script src="./JS/paths.js"></script>
     <script src="./JS/walls.js"></script>
 
-    <!-- Robot system -->
     <script src="./JS/robot_path.js"></script>
     <script src="./JS/algorithm.js"></script>
     <script src="./JS/robot.js"></script>

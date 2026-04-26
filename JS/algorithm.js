@@ -1,30 +1,25 @@
-/**
- * algorithm.js
- * Manages Order UI, Search Algorithms (BFS, DFS, A*), and Delivery State Machine.
- */
-
 const LOCATION_LIST = [
-    { key: 'sushi', label: 'Sushi Place', blockId: 'B', buildingType: 'restaurant', nodeX: 9.25, nodeZ: -9.25 },
-    { key: 'burgers', label: 'Burger Hub', blockId: 'B', buildingType: 'restaurant', nodeX: 9.25, nodeZ: -9.25 },
-    { key: 'pizza', label: 'Pizza Corner', blockId: 'C', buildingType: 'restaurant', nodeX: -9.25, nodeZ: 9.25 },
-    { key: 'bakery', label: 'Bakery House', blockId: 'D', buildingType: 'restaurant', nodeX: 9.25, nodeZ: 9.25 },
-    { key: 'cafeA', label: 'Mocha Cloud Cafe', blockId: 'A', buildingType: 'cafe', nodeX: -9.25, nodeZ: 75.75 },
-    { key: 'cafeB', label: 'Bean Republic Cafe', blockId: 'B', buildingType: 'cafe', nodeX: 9.25, nodeZ: 75.75 },
-    { key: 'cafeC', label: 'Caramel Notes Cafe', blockId: 'C', buildingType: 'cafe', nodeX: -9.25, nodeZ: -75.75 },
-    { key: 'cafeD', label: 'Midnight Roast Cafe', blockId: 'D', buildingType: 'cafe', nodeX: 9.25, nodeZ: -75.75 },
+    { key: 'sushi',   label: 'Sushi Place',         blockId: 'B', buildingType: 'restaurant', nodeX: 9.25,  nodeZ: -9.25 },
+    { key: 'burgers', label: 'Burger Hub',          blockId: 'B', buildingType: 'restaurant', nodeX: 9.25,  nodeZ: -9.25 },
+    { key: 'pizza',   label: 'Pizza Corner',        blockId: 'C', buildingType: 'restaurant', nodeX: -9.25, nodeZ: 9.25 },
+    { key: 'bakery',  label: 'Bakery House',        blockId: 'D', buildingType: 'restaurant', nodeX: 9.25,  nodeZ: 9.25 },
+    { key: 'cafeA',   label: 'Mocha Cloud Cafe',    blockId: 'A', buildingType: 'cafe',       nodeX: -9.25, nodeZ: 75.75 },
+    { key: 'cafeB',   label: 'Bean Republic Cafe',  blockId: 'B', buildingType: 'cafe',       nodeX: 9.25,  nodeZ: 75.75 },
+    { key: 'cafeC',   label: 'Caramel Notes Cafe',  blockId: 'C', buildingType: 'cafe',       nodeX: -9.25, nodeZ: -75.75 },
+    { key: 'cafeD',   label: 'Midnight Roast Cafe', blockId: 'D', buildingType: 'cafe',       nodeX: 9.25,  nodeZ: -75.75 },
 ];
 window.LOCATION_LIST = LOCATION_LIST;
 
 const DESTINATION_LIST = [
-    { key: 'aptA1', label: 'Block A — Apt 1', blockId: 'A', houseIdx: 0, nodeX: 75.75, nodeZ: 75.75 },
-    { key: 'aptA2', label: 'Block A — Apt 2', blockId: 'A', houseIdx: 1, nodeX: 94.25, nodeZ: 75.75 },
-    { key: 'aptA3', label: 'Block A — Apt 3', blockId: 'A', houseIdx: 2, nodeX: 75.75, nodeZ: 94.25 },
+    { key: 'aptA1', label: 'Block A — Apt 1', blockId: 'A', houseIdx: 0, nodeX: 75.75,  nodeZ: 75.75 },
+    { key: 'aptA2', label: 'Block A — Apt 2', blockId: 'A', houseIdx: 1, nodeX: 94.25,  nodeZ: 75.75 },
+    { key: 'aptA3', label: 'Block A — Apt 3', blockId: 'A', houseIdx: 2, nodeX: 75.75,  nodeZ: 94.25 },
     { key: 'aptB1', label: 'Block B — Apt 1', blockId: 'B', houseIdx: 0, nodeX: -75.75, nodeZ: 75.75 },
     { key: 'aptB2', label: 'Block B — Apt 2', blockId: 'B', houseIdx: 1, nodeX: -94.25, nodeZ: 75.75 },
     { key: 'aptB3', label: 'Block B — Apt 3', blockId: 'B', houseIdx: 2, nodeX: -75.75, nodeZ: 94.25 },
-    { key: 'aptC1', label: 'Block C — Apt 1', blockId: 'C', houseIdx: 0, nodeX: 75.75, nodeZ: -75.75 },
-    { key: 'aptC2', label: 'Block C — Apt 2', blockId: 'C', houseIdx: 1, nodeX: 94.25, nodeZ: -75.75 },
-    { key: 'aptC3', label: 'Block C — Apt 3', blockId: 'C', houseIdx: 2, nodeX: 75.75, nodeZ: -94.25 },
+    { key: 'aptC1', label: 'Block C — Apt 1', blockId: 'C', houseIdx: 0, nodeX: 75.75,  nodeZ: -75.75 },
+    { key: 'aptC2', label: 'Block C — Apt 2', blockId: 'C', houseIdx: 1, nodeX: 94.25,  nodeZ: -75.75 },
+    { key: 'aptC3', label: 'Block C — Apt 3', blockId: 'C', houseIdx: 2, nodeX: 75.75,  nodeZ: -94.25 },
     { key: 'aptD1', label: 'Block D — Apt 1', blockId: 'D', houseIdx: 0, nodeX: -75.75, nodeZ: -75.75 },
     { key: 'aptD2', label: 'Block D — Apt 2', blockId: 'D', houseIdx: 1, nodeX: -94.25, nodeZ: -75.75 },
     { key: 'aptD3', label: 'Block D — Apt 3', blockId: 'D', houseIdx: 2, nodeX: -75.75, nodeZ: -94.25 },
@@ -40,6 +35,7 @@ const TreeUI = {
     algorithmType: 'BFS',
     _pathSet: null,
 
+    // (Reset + Start) For The Tree
     init(startId, prefixStr = '', nodes = null, algorithmType = 'BFS') {
         this.tree = {};
         this.rootId = startId;
@@ -63,7 +59,6 @@ const TreeUI = {
     addNode(parentId, childId, costs = null) {
         if (!this.tree[parentId]) return;
         
-        // Handle re-parenting if childId already exists in the tree
         if (this.tree[childId]) {
             const oldParentId = this.tree[childId].parentId;
             if (oldParentId !== null && this.tree[oldParentId]) {
@@ -82,13 +77,14 @@ const TreeUI = {
         if (this.nodes) {
             const n = this.nodes.find(node => node.id === childId) || this.nodes[childId];
             if (n && n.mesh) {
-                n.mesh.material.color.setHex(0x7aa8c0); // visited node color
+                n.mesh.material.color.setHex(0x7aa8c0); 
                 if (n.mesh.material.emissive) n.mesh.material.emissive.setHex(0x112233);
             }
         }
         this.render();
     },
 
+    // Get Path to Current Node (for status display)
     getPathTo(nodeId) {
         const path = [];
         let curr = nodeId;
@@ -103,11 +99,12 @@ const TreeUI = {
         return path;
     },
 
+    // Select The Current Node
     setCurrent(nodeId) {
         if (this.nodes && this.currentId !== null) {
             const prev = this.nodes.find(node => node.id === this.currentId) || this.nodes[this.currentId];
             if (prev && prev.mesh) {
-                prev.mesh.material.color.setHex(0x7aa8c0); // visited node color
+                prev.mesh.material.color.setHex(0x7aa8c0); 
                 if (prev.mesh.material.emissive) prev.mesh.material.emissive.setHex(0x112233);
             }
         }
@@ -115,12 +112,11 @@ const TreeUI = {
         if (this.nodes) {
             const curr = this.nodes.find(node => node.id === nodeId) || this.nodes[nodeId];
             if (curr && curr.mesh) {
-                curr.mesh.material.color.setHex(0xffaa00); // current node color (orange)
+                curr.mesh.material.color.setHex(0xffaa00); 
                 if (curr.mesh.material.emissive) curr.mesh.material.emissive.setHex(0x553300);
             }
         }
 
-        // Update the path status text
         const pathArr = this.getPathTo(nodeId);
         const pathStr = pathArr.map(id => this.prefixStr + id).join(' → ');
         const statusEl = document.getElementById('tree-status');
@@ -132,7 +128,7 @@ const TreeUI = {
         this.render();
     },
 
-    // Highlight the final path — distinct from visited (blue) nodes
+    // Final Path
     markPath(pathArr, nodesOverride) {
         this._pathSet = new Set(pathArr.map(id => +id));
         const nodeList = nodesOverride || this.nodes;
@@ -140,7 +136,7 @@ const TreeUI = {
             pathArr.forEach(id => {
                 const n = nodeList.find ? nodeList.find(nd => nd.id === +id) : nodeList[+id];
                 if (n && n.mesh) {
-                    n.mesh.material.color.setHex(0x00ee66);  // bright green
+                    n.mesh.material.color.setHex(0x00ee66); 
                     if (n.mesh.material.emissive) n.mesh.material.emissive.setHex(0x003322);
                 }
             });
@@ -148,11 +144,11 @@ const TreeUI = {
         this.render();
     },
 
+    // Visualize The Tree
     render() {
         const panel = document.getElementById('tree-content');
         if (!panel) return;
 
-        // Update the panel title to reflect the current algorithm
         const titleEl = document.getElementById('tree-title');
         if (titleEl) {
             titleEl.textContent = `\u25CF ${this.algorithmType} Tree`;
@@ -220,18 +216,14 @@ function dfsPath(adj, start, goal) {
     return null;
 }
 
+// ==========================================================================================
 // ── BFS physical-walk generator ──────────────────────────────────────────
-// Yields ONLY { type:'step', from, to } events where 'to' is ALWAYS a direct
-// neighbor of 'from'. The queue drives order; it never causes a teleport.
-// Also yields { type:'found' } when goal is reached, { type:'fail' } otherwise.
 function* bfsPhysicalWalkGen(adj, start, goal) {
     const parent = { [start]: null };
     const visited = new Set([start]);
     const queue = [start];
-    let phys = start; // robot's current physical position
+    let phys = start; 
 
-    // Yield individual edge-steps to move from phys to targetId,
-    // using only BFS-tree edges (up to LCA, then down).
     function* walkTo(targetId) {
         if (phys === targetId) return;
         function anc(id) {
@@ -245,12 +237,12 @@ function* bfsPhysicalWalkGen(adj, start, goal) {
         let lcaTIdx = ta.findIndex(n => fs.has(n));
         const lca = ta[lcaTIdx];
         const lcaFIdx = fa.indexOf(lca);
-        // Move UP: phys → lca
+
         for (let i = 0; i < lcaFIdx; i++) {
             yield { type: 'step', from: fa[i], to: fa[i + 1] };
             phys = fa[i + 1];
         }
-        // Move DOWN: lca → targetId
+
         const down = ta.slice(0, lcaTIdx).reverse();
         for (const to of down) {
             yield { type: 'step', from: phys, to };
@@ -260,8 +252,6 @@ function* bfsPhysicalWalkGen(adj, start, goal) {
 
     while (queue.length) {
         const cur = queue.shift();
-        // The queue says process 'cur' next.
-        // The robot WALKS there through adjacent nodes — no teleport.
         yield* walkTo(cur);
 
         if (cur === goal) { yield { type: 'found', node: cur }; return; }
@@ -271,13 +261,10 @@ function* bfsPhysicalWalkGen(adj, start, goal) {
                 visited.add(nb);
                 parent[nb] = cur;
                 queue.push(nb);
-                // Return to 'cur' before discovering each child (robot may have drifted)
                 yield* walkTo(cur);
-                // One direct step to discover the child
                 yield { type: 'step', from: cur, to: nb, isNew: true };
                 phys = nb;
 
-                // STOP IMMEDIATELY if we just discovered and physically reached the goal!
                 if (nb === goal) {
                     yield { type: 'found', node: nb };
                     return;
@@ -289,13 +276,10 @@ function* bfsPhysicalWalkGen(adj, start, goal) {
 }
 
 // ── DFS physical-walk generator ──────────────────────────────────────────
-// Identical structure to bfsPhysicalWalkGen but uses a STACK (LIFO) so nodes
-// are explored depth-first. The walkTo helper is the same — robot always moves
-// along already-discovered tree edges, never teleports.
 function* dfsPhysicalWalkGen(adj, start, goal) {
     const parent = { [start]: null };
     const visited = new Set([start]);
-    const stack = [start];        // ← stack, not queue
+    const stack = [start];        
     let phys = start;
 
     function* walkTo(targetId) {
@@ -323,35 +307,26 @@ function* dfsPhysicalWalkGen(adj, start, goal) {
     }
 
     while (stack.length) {
-        const cur = stack.pop();    // ← pop gives depth-first order
+        const cur = stack.pop();   
         yield* walkTo(cur);
 
         if (cur === goal) { yield { type: 'found', node: cur }; return; }
 
-        // Push neighbours in reverse so the first neighbour is explored first
         const neighbours = (adj[cur] || []).slice().reverse();
         for (const nb of neighbours) {
             if (!visited.has(nb)) {
                 visited.add(nb);
                 parent[nb] = cur;
                 stack.push(nb);
-
-                // yield { type: 'discover', from: cur, to: nb };
             }
         }
-
-        // move to next node (deep)
 
         for (const nb of neighbours) {
             if (!visited.has(nb)) {
                 visited.add(nb);
                 parent[nb] = cur;
                 stack.push(nb);
-
-                // ارجع لـ cur (لو اتحركت)
                 yield* walkTo(cur);
-
-                // خطوة واحدة مباشرة للـ neighbor
                 yield { type: 'step', from: cur, to: nb, isNew: true };
                 phys = nb;
 
@@ -360,7 +335,7 @@ function* dfsPhysicalWalkGen(adj, start, goal) {
                     return;
                 }
 
-                break; // مهم جدا: DFS يمشي في مسار واحد (depth)
+                break;
             }
         }
     }
@@ -429,10 +404,7 @@ function* astarPhysicalWalkGen(nodes, adj, start, goal) {
                 fScore[nb] = tentativeG + h;
                 
                 if (!openSet.includes(nb)) openSet.push(nb);
-
-                // Move to 'cur' before discovering child
                 yield* walkTo(cur);
-                // Step to child
                 yield { type: 'step', from: cur, to: nb, isNew: true, costs: { g: gScore[nb], h: h, f: fScore[nb] } };
                 phys = nb;
 
@@ -446,7 +418,8 @@ function* astarPhysicalWalkGen(nodes, adj, start, goal) {
     yield { type: 'fail' };
 }
 
-// Inner A* walk — async step-by-step search visualization (robot stays still during search)
+// ==========================================================================================
+// Inner A* walk 
 async function stepAstarExploreInner(innerRobot, intNet, startId, goalId, onDone, onHint) {
     startId = +startId;
     goalId  = +goalId;
@@ -460,7 +433,7 @@ async function stepAstarExploreInner(innerRobot, intNet, startId, goalId, onDone
         return;
     }
 
-    const DELAY = 20; // ms between each visited node
+    const DELAY = 20;
     const openSet   = [startId];
     const closedSet = new Set();
     const cameFrom  = {};
@@ -475,7 +448,6 @@ async function stepAstarExploreInner(innerRobot, intNet, startId, goalId, onDone
         if (closedSet.has(current)) continue;
         closedSet.add(current);
 
-        // Highlight this node in TreeUI + 3-D
         const parentId = cameFrom[current] ?? null;
         const g = gScore[current] ?? 0;
         const cn = getNode(current);
@@ -486,11 +458,9 @@ async function stepAstarExploreInner(innerRobot, intNet, startId, goalId, onDone
         TreeUI.setCurrent(current);
         if (onHint) onHint(`A* visiting I${current}...`);
 
-        // Wait before next step — this is what makes it visible
         await new Promise(r => setTimeout(r, DELAY));
 
         if (current === goalId) {
-            // Reconstruct path
             const path = [current];
             let c = current;
             while (cameFrom[c] !== undefined) { c = +cameFrom[c]; path.unshift(c); }
@@ -522,7 +492,6 @@ async function stepAstarExploreInner(innerRobot, intNet, startId, goalId, onDone
         return;
     }
 
-    // Tally cost and update hint
     let totalPathCost = 0;
     for (let i = 0; i < foundPath.length - 1; i++) {
         const n1 = intNet.nodes.find(n => n.id === foundPath[i]);
@@ -531,12 +500,10 @@ async function stepAstarExploreInner(innerRobot, intNet, startId, goalId, onDone
     }
     if (_order) _order.totalCost += totalPathCost;
 
-    // ── Phase 2: Highlight final path (green, distinct from visited blue) ──
     TreeUI.markPath(foundPath, intNet.nodes);
     if (onHint) onHint('A* path found! Drawing path...');
     await new Promise(r => setTimeout(r, 700));
 
-    // ── Phase 3: Move robot along the found path ───────────────────────
     if (onHint && _order) onHint('Moving robot...', _order.totalCost.toFixed(1) + 's');
     let idx = (innerRobot.currentNodeId === foundPath[0]) ? 1 : 0;
     function moveRobot() {
@@ -549,7 +516,7 @@ async function stepAstarExploreInner(innerRobot, intNet, startId, goalId, onDone
     moveRobot();
 }
 
-// Outer A* walk — async step-by-step search visualization (robot stays still during search)
+// Outer A* walk 
 async function stepAstarExploreOuter(outerRobot, network, startId, goalId, onDone, onHint) {
     startId = +startId;
     goalId  = +goalId;
@@ -564,7 +531,7 @@ async function stepAstarExploreOuter(outerRobot, network, startId, goalId, onDon
         return;
     }
 
-    const DELAY = 20; // ms between each visited node
+    const DELAY = 20; 
     const openSet   = [startId];
     const closedSet = new Set();
     const cameFrom  = {};
@@ -572,14 +539,12 @@ async function stepAstarExploreOuter(outerRobot, network, startId, goalId, onDon
     const fScore    = { [startId]: 0 };
     let   foundPath = null;
 
-    // ── Step-by-step A* search (robot does NOT move) ──────────────────
     while (openSet.length > 0) {
         openSet.sort((a, b) => (fScore[a] ?? Infinity) - (fScore[b] ?? Infinity));
         const current = +openSet.shift();
         if (closedSet.has(current)) continue;
         closedSet.add(current);
 
-        // Highlight this node in TreeUI + 3-D
         const parentId = cameFrom[current] ?? null;
         const g = gScore[current] ?? 0;
         const cn = getNode(current);
@@ -590,11 +555,9 @@ async function stepAstarExploreOuter(outerRobot, network, startId, goalId, onDon
         TreeUI.setCurrent(current);
         if (onHint) onHint(`A* visiting N${current}...`);
 
-        // Wait before next step — this is what makes it visible
         await new Promise(r => setTimeout(r, DELAY));
 
         if (current === goalId) {
-            // Reconstruct path
             const path = [current];
             let c = current;
             while (cameFrom[c] !== undefined) { c = +cameFrom[c]; path.unshift(c); }
@@ -626,7 +589,6 @@ async function stepAstarExploreOuter(outerRobot, network, startId, goalId, onDon
         return;
     }
 
-    // Tally cost and update hint
     let totalPathCost = 0;
     for (let i = 0; i < foundPath.length - 1; i++) {
         const n1 = getNode(foundPath[i]);
@@ -635,12 +597,10 @@ async function stepAstarExploreOuter(outerRobot, network, startId, goalId, onDon
     }
     if (_order) _order.totalCost += totalPathCost;
 
-    // ── Phase 2: Highlight final path (green, distinct from visited blue) ──
     TreeUI.markPath(foundPath, network.nodes);
     if (onHint) onHint('A* path found! Drawing path...');
     await new Promise(r => setTimeout(r, 700));
 
-    // ── Phase 3: Move robot along the found path ───────────────────────
     if (onHint && _order) onHint('Moving robot...', _order.totalCost.toFixed(1) + 's');
     let idx = (outerRobot.currentNodeId === foundPath[0]) ? 1 : 0;
     function moveRobot() {
@@ -656,7 +616,7 @@ async function stepAstarExploreOuter(outerRobot, network, startId, goalId, onDon
     moveRobot();
 }
 
-// Inner BFS walk: each generator event is one direct edge — no routing needed here.
+// Inner BFS walk
 function stepBfsExploreInner(innerRobot, intNet, startId, goalId, onDone, onHint) {
     const gen = bfsPhysicalWalkGen(intNet.adj, startId, goalId);
     let moves = 0;
@@ -687,7 +647,7 @@ function stepBfsExploreInner(innerRobot, intNet, startId, goalId, onDone, onHint
     nextStep();
 }
 
-// Outer BFS walk: each generator event is one direct edge — no routing needed here.
+// Outer BFS walk
 function stepBfsExploreOuter(outerRobot, network, startId, goalId, onDone, onHint) {
     const outerAdj = buildOuterAdj(network);
     const gen = bfsPhysicalWalkGen(outerAdj, startId, goalId);
@@ -721,7 +681,7 @@ function stepBfsExploreOuter(outerRobot, network, startId, goalId, onDone, onHin
     nextStep();
 }
 
-// Inner DFS walk — mirrors stepBfsExploreInner but uses dfsPhysicalWalkGen.
+// Inner DFS walk 
 function stepDfsExploreInner(innerRobot, intNet, startId, goalId, onDone, onHint) {
     const gen = dfsPhysicalWalkGen(intNet.adj, startId, goalId);
     let visitedCount = 0;
@@ -752,7 +712,7 @@ function stepDfsExploreInner(innerRobot, intNet, startId, goalId, onDone, onHint
     nextStep();
 }
 
-// Outer DFS walk — mirrors stepBfsExploreOuter but uses dfsPhysicalWalkGen.
+// Outer DFS walk 
 function stepDfsExploreOuter(outerRobot, network, startId, goalId, onDone, onHint) {
     const outerAdj = buildOuterAdj(network);
     const gen = dfsPhysicalWalkGen(outerAdj, startId, goalId);
@@ -786,9 +746,9 @@ function stepDfsExploreOuter(outerRobot, network, startId, goalId, onDone, onHin
     nextStep();
 }
 
+
+// ==========================================================================================
 function astarPath(nodes, adj, startId, goalId) {
-    // Normalize IDs to numbers so === comparisons and object-key lookups
-    // are always consistent (JS object keys are strings, but node IDs are numbers).
     startId = +startId;
     goalId = +goalId;
 
@@ -803,10 +763,9 @@ function astarPath(nodes, adj, startId, goalId) {
 
     while (openSet.length > 0) {
         openSet.sort((a, b) => (fScore[a] ?? Infinity) - (fScore[b] ?? Infinity));
-        const current = +openSet.shift(); // always a number
+        const current = +openSet.shift(); 
 
         if (current === goalId) {
-            // Reconstruct path — all IDs as numbers
             const path = [current];
             let curr = current;
             while (cameFrom[curr] !== undefined) {
@@ -817,7 +776,7 @@ function astarPath(nodes, adj, startId, goalId) {
         }
 
         for (const nb of (adj[current] || [])) {
-            const neighbor = +nb; // coerce to number
+            const neighbor = +nb; 
             const currNode = getNode(current);
             const nextNode = getNode(neighbor);
             if (!currNode || !nextNode) continue;
@@ -847,7 +806,7 @@ function buildOuterAdj(network) {
 // ── State ─────────────────────────────────────────────────────────────────
 let _order = null, _phase = null, _solveMode = null;
 let _innerPath = null, _outerPath = null;
-let _currentPhaseGoal = null; // node id the active robot must reach to advance phase
+let _currentPhaseGoal = null; 
 const orders = []; let nextId = 1;
 
 function makeOrderUI(network, robots, innerRobots) {
@@ -950,7 +909,6 @@ function makeOrderUI(network, robots, innerRobots) {
         orders.push(_order);
         console.log("Order created:", _order);
         
-        // Enable algorithm buttons
         [astarBtn, bfsBtn, dfsBtn, solveBtn].forEach(btn => { if(btn) btn.disabled = false; });
 
         _phase = null; _solveMode = null; _innerPath = null; _outerPath = null;
@@ -968,11 +926,10 @@ function makeOrderUI(network, robots, innerRobots) {
         _solveMode = mode;
         _order.algorithm = mode.toUpperCase();
         window.__solveMode = mode;
-        window.isManualMode = (mode === 'manual'); // true = no pathfinding, wait for clicks
+        window.isManualMode = (mode === 'manual');
         
         console.log(`Starting traversal for Order #${_order.id} using ${mode.toUpperCase()}`);
         
-        // Disable buttons once solving starts to prevent switching mid-run
         [astarBtn, bfsBtn, dfsBtn, solveBtn].forEach(btn => { if(btn) btn.disabled = true; });
 
         beginPhase('inner_pickup');
@@ -1249,15 +1206,11 @@ function makeOrderUI(network, robots, innerRobots) {
     function stepInner(innerRobot, intNet, onDone, pathOverride) {
         const path = Array.isArray(pathOverride) ? pathOverride : _innerPath;
 
-        // No path at all — nothing to do, but still defer onDone to next frame
-        // so we never mark delivery synchronously during pathfinding.
         if (!path || path.length === 0) {
             requestAnimationFrame(onDone);
             return;
         }
 
-        // Find where to start: if robot is already sitting on path[0] jump to
-        // path[1], otherwise start at path[0] so every case triggers a move.
         let idx = (innerRobot.currentNodeId === path[0]) ? 1 : 0;
 
         function next() {
@@ -1265,7 +1218,6 @@ function makeOrderUI(network, robots, innerRobots) {
             const node = intNet.nodes.find(n => n.id === path[idx]);
             if (!node) { onDone(); return; }
             innerRobot.moveToNode(node);
-            // onArrival fires only after the robot mesh actually reaches the node
             innerRobot.onArrival = () => { idx++; next(); };
         }
         next();
@@ -1274,7 +1226,6 @@ function makeOrderUI(network, robots, innerRobots) {
     // ── Outer Robot Pathfinding ──────────────────────────────────────────
     function stepOuterAlongPath(outerRobot, path, onDone) {
         if (!path || path.length < 1) { onDone(); return; }
-        // Determine start index: skip nodes the robot is already at
         let idx = 0;
         if (path[0] === outerRobot.currentNodeId) idx = 1;
         if (idx >= path.length) { onDone(); return; }
@@ -1283,7 +1234,6 @@ function makeOrderUI(network, robots, innerRobots) {
             if (idx >= path.length) { onDone(); return; }
             const node = network.nodes[path[idx]];
             if (!node) { onDone(); return; }
-            // Move directly to node coordinates (bypass triangle detection)
             outerRobot.moveDirectTo(node.x, node.z, () => {
                 outerRobot.currentNodeId = node.id;
                 idx++;
@@ -1300,19 +1250,16 @@ function makeOrderUI(network, robots, innerRobots) {
         setClicked: setHint,
         renderOrders: render,
         addNodeToOrderPath: (robot, nodeId) => { 
-            // The live counter will handle the timeStr update
         },
         addTriangleToOrderPath: (robot, triId) => {
-            // The live counter will handle the timeStr update
         },
         setBackedUp: () => { },
         completeOrder: () => { if (_order) { _order.status = 'delivering'; beginPhase('inner_deliver'); } },
         isOuterPhase: () => _order && (_order.phase === 'outer_to_src' || _order.phase === 'outer_to_dst'),
         getCurrentPhase: () => _order ? _order.phase : null,
-        // Called by click handler after each manual move arrives at a node
         manualArrival: (nodeId) => {
             if (!_order || !window.isManualMode) return;
-            if (nodeId !== _currentPhaseGoal) return; // not at goal yet — keep clicking
+            if (nodeId !== _currentPhaseGoal) return; 
             const phase = _order.phase;
             if (phase === 'inner_pickup') beginPhase('inner_to_gate');
             else if (phase === 'inner_to_gate') { if (_order.isSameBlock) beginPhase('inner_deliver'); else beginPhase('outer_to_src'); }
@@ -1340,14 +1287,12 @@ function makeOrderUI(network, robots, innerRobots) {
     render();
 
     // ── Live UI Update Loop ──────────────────────────────────────────────
-    // Updated calculation: currentTime = Date.now() - order.startTime
     setInterval(() => {
         if (_order && _order.startTime && _order.status === 'delivering') {
             const currentTime = Date.now() - _order.startTime;
             const timeInSeconds = Math.floor(currentTime / 1000);
             const timeStr = timeInSeconds + 's';
             
-            // Only update and re-render if the second has changed
             if (_order.timeStr !== timeStr) {
                 _order.timeStr = timeStr;
                 window.__activeRobotTime = timeStr;
@@ -1370,11 +1315,9 @@ window.runInnerDfsDemo = function (blockId) {
 
     hint(`[${blockId}] DFS: gate → restaurant...`);
 
-    // Leg 1: gate → restaurant
     stepDfsExploreInner(robot, intNet, gateId, restaurantId, () => {
         hint(`[${blockId}] Reached restaurant! Returning to gate...`);
         setTimeout(() => {
-            // Leg 2: restaurant → gate  (fresh DFS, goal becomes new start)
             stepDfsExploreInner(robot, intNet, robot.currentNodeId, gateId, () => {
                 hint(`✅ [${blockId}] DFS complete: back at gate.`);
             }, hint);
@@ -1394,15 +1337,12 @@ window.runOuterDfsDemo = function () {
 
     hint('Outer DFS: gate A → gate B...');
 
-    // Leg 1: current position → gate A
     stepDfsExploreOuter(robot, network, robot.currentNodeId, gateA, () => {
         hint('Reached gate A! DFS to gate B...');
         setTimeout(() => {
-            // Leg 2: gate A → gate B  (fresh DFS)
             stepDfsExploreOuter(robot, network, robot.currentNodeId, gateB, () => {
                 hint('✅ Outer DFS complete: reached gate B.');
             }, hint);
         }, 800);
     }, hint);
 };
-
