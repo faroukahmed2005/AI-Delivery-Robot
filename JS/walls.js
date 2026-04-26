@@ -1,14 +1,8 @@
-// ── walls.js ───────────────────────────────────────────────────
-// Adds perimeter walls + smart gates + handoff docks for each lawn block.
-// Auto-hooks into buildPaths(scene) so index.html only needs a script include.
-
 (function () {
     if (typeof THREE === 'undefined') return;
 
-    // Matches paths.js
     const PATH_SURFACE_Y = 0.282;
 
-    // Matches base.js lawn blocks: 64x64 at centers ±42.5
     const BLOCK_HALF = 32;
     const BLOCKS = {
         A: { x: -42.5, z: -42.5 },
@@ -20,7 +14,7 @@
     const WALL = {
         height: 2.6,
         thickness: 0.7,
-        inset: 0.3,       // push inside lawn boundary
+        inset: 0.3,       
         capH: 0.22,
         capInset: 0.05,
         color: 0x8a8880,
@@ -34,7 +28,7 @@
         frameH: 3.0,
         panelH: 2.25,
         panelD: 0.18,
-        panelW: 2.9, // each panel ~ half opening (slight overlap)
+        panelW: 2.9, 
         frameColor: 0x445566,
         panelColor: 0x8a949e,
         closedGlow: 0xff2200,
@@ -52,18 +46,15 @@
         ringEmissive: 0x0a2a33,
     };
 
-    // Block-gate placement:
-    // Choose one side per block that faces the inner "main rails" near x=±9.25.
-    // - Left blocks (A,C): gate on EAST edge (towards increasing x).
-    // - Right blocks (B,D): gate on WEST edge (towards decreasing x).
+    // Get (Gate / Wall) Positions
     function gateSpecForBlock(id) {
         const b = BLOCKS[id];
         if (!b) return null;
         const isLeft = b.x < 0;
-        const side = isLeft ? 'E' : 'W'; // gate on x-side wall
+        const side = isLeft ? 'E' : 'W'; 
         const edgeX = b.x + (isLeft ? +BLOCK_HALF : -BLOCK_HALF);
-        const wallX = edgeX - (isLeft ? WALL.inset : -WALL.inset); // sit inside the grass
-        const streetDir = isLeft ? +1 : -1; // towards rails near x=±9.25
+        const wallX = edgeX - (isLeft ? WALL.inset : -WALL.inset); 
+        const streetDir = isLeft ? +1 : -1; 
         return { side, wallX, streetDir };
     }
 
@@ -85,10 +76,11 @@
     }
 
     const __gateRuntime = {
-        gates: {}, // id -> runtime
+        gates: {}, 
         started: false,
     };
 
+    // Build walls around a block
     function buildPerimeterWall(scene, blockId) {
         const b = BLOCKS[blockId];
         const spec = gateSpecForBlock(blockId);
@@ -112,10 +104,9 @@
         const spanZ = maxZ - minZ;
 
         const opening = GATE.opening;
-        const gap = opening + 0.35; // leave tiny clearance
+        const gap = opening + 0.35; 
         const halfGap = gap / 2;
 
-        // North/South walls (run along X, thin in Z)
         {
             const zN = maxZ;
             const zS = minZ;
@@ -135,7 +126,6 @@
             group.add(southCap);
         }
 
-        // East/West walls (run along Z, thin in X). One of them has a gate opening.
         function addZWallsWithOptionalGate(xWall, hasGate) {
             const zMid = b.z;
             const fullLen = spanZ;
@@ -183,7 +173,6 @@
         const gate = new THREE.Group();
         gate.name = `BlockGate_${blockId}`;
 
-        // Gate centered on the gate-wall, facing street in ±X direction, opening runs along Z.
         const x = wallInfo.gateWallX;
         const z = b.z;
         const baseY = PATH_SURFACE_Y + 0.02;
@@ -191,12 +180,11 @@
         const frameMat = makeMat(GATE.frameColor, 0.85, 0.35);
         const panelMat = makeMat(GATE.panelColor, 0.65, 0.45);
 
-        // Frame: two posts + top beam
         const postH = GATE.frameH;
         const postW = GATE.frameW;
         const postD = GATE.frameDepth;
 
-        const leftPost = makeBox(postD, postH, postW, frameMat);  // depth along X, width along Z
+        const leftPost = makeBox(postD, postH, postW, frameMat);  
         const rightPost = makeBox(postD, postH, postW, frameMat);
         leftPost.position.set(0, postH / 2, -GATE.opening / 2);
         rightPost.position.set(0, postH / 2, +GATE.opening / 2);
@@ -206,7 +194,6 @@
         topBeam.position.set(0, postH - postW / 2, 0);
         gate.add(topBeam);
 
-        // Sliding panels (move along Z)
         const panelY = Math.min(postH - 0.35, GATE.panelH) / 2 + 0.25;
         const panelH = Math.min(postH - 0.55, GATE.panelH);
         const panelD = GATE.panelD;
@@ -218,7 +205,6 @@
         panelR.position.set(0.02, panelY, +panelW / 2 - 0.02);
         gate.add(panelL, panelR);
 
-        // Indicator light (small emissive sphere)
         const lightGeo = new THREE.SphereGeometry(0.16, 12, 10);
         const lightMat = makeMat(0xffffff, 0.0, 0.2, GATE.closedGlow);
         lightMat.emissiveIntensity = 1.3;
@@ -227,9 +213,7 @@
         indicator.castShadow = false;
         gate.add(indicator);
 
-        // Place gate group in world
         gate.position.set(x, baseY, z);
-        // Slightly push gate towards street so it visually sits in the opening, not inside wall thickness.
         gate.position.x += wallInfo.streetDir * (WALL.thickness * 0.12);
 
         scene.add(gate);
@@ -241,7 +225,7 @@
             panelR,
             indicatorMat: lightMat,
             state: 'closed',
-            target: 0,  // 0 closed, 1 open
+            target: 0,  
             openness: 0,
             wallInfo,
         };
@@ -249,6 +233,7 @@
         return runtime;
     }
 
+    // Build The Front Platform
     function buildDock(scene, blockId, wallInfo) {
         const b = BLOCKS[blockId];
         if (!b || !wallInfo) return null;
@@ -281,43 +266,6 @@
         return { group, platform, ring, pos: { x: dockX, z: dockZ } };
     }
 
-    function setGateIndicator(runtime, open) {
-        runtime.indicatorMat.emissive.setHex(open ? GATE.openGlow : GATE.closedGlow);
-    }
-
-    function setGatePanels(runtime, openness01) {
-        // openness01=0 closed, 1 open
-        const openDist = (GATE.opening / 2) - (GATE.panelW / 2) + 0.18;
-        const t = Math.max(0, Math.min(1, openness01));
-        // Closed: meet in middle (panel centers close to 0)
-        // Open: slide apart to ±openDist
-        runtime.panelL.position.z = THREE.MathUtils.lerp(-0.02, -openDist, t);
-        runtime.panelR.position.z = THREE.MathUtils.lerp(0.02, openDist, t);
-    }
-
-    function tick(dt) {
-        // Smooth gate animation + dock pulse
-        Object.values(__gateRuntime.gates).forEach(rt => {
-            const speed = 6.5; // larger = faster
-            const k = 1 - Math.exp(-speed * dt);
-            rt.openness += (rt.target - rt.openness) * k;
-            setGatePanels(rt, rt.openness);
-            const isOpen = rt.openness > 0.85;
-            if (isOpen && rt.state !== 'open') rt.state = 'open';
-            if (!isOpen && rt.openness < 0.15 && rt.state !== 'closed') rt.state = 'closed';
-            setGateIndicator(rt, rt.target >= 0.5);
-        });
-
-        if (window.__BlockDocks) {
-            const t = performance.now() * 0.0012;
-            Object.values(window.__BlockDocks).forEach(d => {
-                const s = 0.85 + (Math.sin(t * 2.2) * 0.5 + 0.5) * 0.55;
-                d.ring.scale.setScalar(s);
-                d.ring.material.opacity = 0.22 + (1.0 - (s - 0.85) / 0.55) * 0.45;
-            });
-        }
-    }
-
     function ensureTicker() {
         if (__gateRuntime.started) return;
         __gateRuntime.started = true;
@@ -331,14 +279,12 @@
         })();
     }
 
-
     function buildGateArrow(scene, blockId, wallInfo) {
         if (!wallInfo) return;
         const b = BLOCKS[blockId];
         if (!b) return;
         const arrowX = wallInfo.gateWallX + wallInfo.streetDir * 2.5;
         const arrowZ = b.z;
-        // السهم بيشير ناحية الـ compound
         const rotY = wallInfo.streetDir > 0 ? -Math.PI / 2 : Math.PI / 2;
         const mat = new THREE.MeshStandardMaterial({ color: 0xf2c94c, emissive: 0x3a2a00, metalness: 0.2, roughness: 0.7 });
         const shape = new THREE.Shape();
@@ -350,7 +296,6 @@
         m.position.set(arrowX, PATH_SURFACE_Y + 0.15, arrowZ);
         m.castShadow = true; m.receiveShadow = true;
         scene.add(m);
-        // Expose gate arrow positions so other modules (robot_path) can register markers
         if (!window.__GateMarkers) window.__GateMarkers = {};
         window.__GateMarkers[blockId] = { x: arrowX, z: arrowZ, rotY };
     }
@@ -366,11 +311,8 @@
         ['A', 'B', 'C', 'D'].forEach(id => {
             const wallInfo = buildPerimeterWall(scene, id);
             const gateRt = buildGate(scene, id, wallInfo);
-            // const dock = buildDock(scene, id, wallInfo);
-            // if (dock) docks[id] = dock;
             buildGateArrow(scene, id, wallInfo);
             if (gateRt) {
-                // Start closed
                 gateRt.target = 0;
                 gateRt.openness = 0;
                 setGatePanels(gateRt, 0);
@@ -382,19 +324,11 @@
         ensureTicker();
     }
 
-    function openGate(blockId) {
-        const id = String(blockId || '').toUpperCase();
-        const rt = __gateRuntime.gates[id];
-        if (!rt) return;
-        rt.target = 1;
-    }
-
-    function closeGate(blockId) {
-        const id = String(blockId || '').toUpperCase();
-        const rt = __gateRuntime.gates[id];
-        if (!rt) return;
-        rt.target = 0;
-    }
+    function openGate(blockId) {}
+    function closeGate(blockId) {}
+    function setGateIndicator(runtime, open) {}
+    function setGatePanels(runtime, openness01) {}
+    function tick(dt) {}
 
     function getGatePosition(blockId) {
         const id = String(blockId || '').toUpperCase();
@@ -403,14 +337,12 @@
         return { x: d.pos.x, z: d.pos.z };
     }
 
-    // Global exposure
     window.BlockGates = {
         openGate,
         closeGate,
         getGatePosition,
     };
 
-    // Auto-hook into buildPaths(scene) so the user only adds a script include.
     function hook() {
         if (typeof window.buildPaths === 'function' && !window.buildPaths.__wallsHooked) {
             const orig = window.buildPaths;
@@ -427,7 +359,6 @@
     }
 
     if (!hook()) {
-        // If scripts load out of order, retry briefly.
         let tries = 0;
         const t = setInterval(() => {
             tries++;
@@ -435,4 +366,3 @@
         }, 50);
     }
 })();
-

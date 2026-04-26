@@ -195,7 +195,7 @@ const TreeUI = {
     }
 };
 
-// ── BFS / DFS helpers ─────────────────────────────────────────────────────
+// ── BFS / DFS / A* (Return The Final Path) ─────────────────────────────────────────────────────
 function bfsPath(adj, start, goal) {
     const queue = [[start]], visited = new Set([start]);
     while (queue.length) {
@@ -216,8 +216,55 @@ function dfsPath(adj, start, goal) {
     return null;
 }
 
-// ==========================================================================================
-// ── BFS physical-walk generator ──────────────────────────────────────────
+function astarPath(nodes, adj, startId, goalId) {
+    startId = +startId;
+    goalId = +goalId;
+
+    const getNode = id => nodes.find(n => n.id === +id);
+    const goalNode = getNode(goalId);
+    if (!goalNode) return null;
+
+    const openSet = [startId];
+    const cameFrom = {};
+    const gScore = { [startId]: 0 };
+    const fScore = { [startId]: 0 };
+
+    while (openSet.length > 0) {
+        openSet.sort((a, b) => (fScore[a] ?? Infinity) - (fScore[b] ?? Infinity));
+        const current = +openSet.shift(); 
+
+        if (current === goalId) {
+            const path = [current];
+            let curr = current;
+            while (cameFrom[curr] !== undefined) {
+                curr = +cameFrom[curr];
+                path.unshift(curr);
+            }
+            return path;
+        }
+
+        for (const nb of (adj[current] || [])) {
+            const neighbor = +nb; 
+            const currNode = getNode(current);
+            const nextNode = getNode(neighbor);
+            if (!currNode || !nextNode) continue;
+            const cost = Math.hypot(currNode.x - nextNode.x, currNode.z - nextNode.z);
+
+            const tentativeG = (gScore[current] ?? Infinity) + cost;
+            if (tentativeG < (gScore[neighbor] ?? Infinity)) {
+                cameFrom[neighbor] = current;
+                gScore[neighbor] = tentativeG;
+                const h = Math.hypot(goalNode.x - nextNode.x, goalNode.z - nextNode.z);
+                fScore[neighbor] = tentativeG + h;
+                if (!openSet.includes(neighbor)) openSet.push(neighbor);
+            }
+        }
+    }
+    return null;
+}
+
+// ==========================================================================
+// ── BFS generator ──────────────────────────────────────────
 function* bfsPhysicalWalkGen(adj, start, goal) {
     const parent = { [start]: null };
     const visited = new Set([start]);
@@ -275,7 +322,7 @@ function* bfsPhysicalWalkGen(adj, start, goal) {
     yield { type: 'fail' };
 }
 
-// ── DFS physical-walk generator ──────────────────────────────────────────
+// ── DFS generator ──────────────────────────────────────────
 function* dfsPhysicalWalkGen(adj, start, goal) {
     const parent = { [start]: null };
     const visited = new Set([start]);
@@ -342,7 +389,7 @@ function* dfsPhysicalWalkGen(adj, start, goal) {
     yield { type: 'fail' };
 }
 
-// ── A* physical-walk generator ───────────────────────────────────────────
+// ── A* generator ───────────────────────────────────────────
 function* astarPhysicalWalkGen(nodes, adj, start, goal) {
     start = +start;
     goal = +goal;
@@ -419,6 +466,134 @@ function* astarPhysicalWalkGen(nodes, adj, start, goal) {
 }
 
 // ==========================================================================================
+// Inner BFS walk
+function stepBfsExploreInner(innerRobot, intNet, startId, goalId, onDone, onHint) {
+    const gen = bfsPhysicalWalkGen(intNet.adj, startId, goalId);
+    let moves = 0;
+    TreeUI.init(startId, 'I', intNet.nodes, 'BFS');
+
+    function nextStep() {
+        const r = gen.next();
+        if (r.done) { onDone(); return; }
+        const ev = r.value;
+        if (ev.type === 'found' || ev.type === 'fail') { onDone(); return; }
+
+        if (ev.isNew) TreeUI.addNode(ev.from, ev.to);
+        TreeUI.setCurrent(ev.to);
+        const isDirectNeighbor = (intNet.adj[ev.from] || []).includes(ev.to);
+        if (!isDirectNeighbor) {
+            console.warn(`BFS inner: skipping illegal move I${ev.from} → I${ev.to} (not a direct neighbor)`);
+            nextStep(); return;
+        }
+        if (_order) {
+            _order.totalSteps++;
+            if (onHint) onHint('BFS exploring...', _order.totalSteps + 's');
+        }
+        const node = intNet.nodes.find(n => n.id === ev.to);
+        if (!node) { nextStep(); return; }
+        innerRobot.moveToNode(node);
+        innerRobot.onArrival = nextStep;
+    }
+    nextStep();
+}
+// Outer BFS walk
+function stepBfsExploreOuter(outerRobot, network, startId, goalId, onDone, onHint) {
+    const outerAdj = buildOuterAdj(network);
+    const gen = bfsPhysicalWalkGen(outerAdj, startId, goalId);
+    let moves = 0;
+    TreeUI.init(startId, 'N', network.nodes, 'BFS');
+
+    function nextStep() {
+        const r = gen.next();
+        if (r.done) { onDone(); return; }
+        const ev = r.value;
+        if (ev.type === 'found' || ev.type === 'fail') { onDone(); return; }
+
+        if (ev.isNew) TreeUI.addNode(ev.from, ev.to);
+        TreeUI.setCurrent(ev.to);
+        const isDirectNeighbor = (outerAdj[ev.from] || []).includes(ev.to);
+        if (!isDirectNeighbor) {
+            console.warn(`BFS outer: skipping illegal move N${ev.from} → N${ev.to} (not a direct neighbor)`);
+            nextStep(); return;
+        }
+        if (_order) {
+            _order.totalSteps++;
+            if (onHint) onHint('BFS exploring...', _order.totalSteps + 's');
+        }
+        const node = network.nodes[ev.to];
+        if (!node) { nextStep(); return; }
+        outerRobot.moveDirectTo(node.x, node.z, () => {
+            outerRobot.currentNodeId = ev.to;
+            nextStep();
+        });
+    }
+    nextStep();
+}
+
+// Inner DFS walk 
+function stepDfsExploreInner(innerRobot, intNet, startId, goalId, onDone, onHint) {
+    const gen = dfsPhysicalWalkGen(intNet.adj, startId, goalId);
+    let visitedCount = 0;
+    TreeUI.init(startId, 'I', intNet.nodes, 'DFS');
+
+    function nextStep() {
+        const r = gen.next();
+        if (r.done) { onDone(); return; }
+        const ev = r.value;
+        if (ev.type === 'found' || ev.type === 'fail') { onDone(); return; }
+
+        if (!TreeUI.tree[ev.to]) {
+            TreeUI.addNode(ev.from, ev.to);
+            if (_order) _order.totalVisited++;
+        }
+        TreeUI.setCurrent(ev.to);
+        const isDirectNeighbor = (intNet.adj[ev.from] || []).includes(ev.to);
+        if (!isDirectNeighbor) {
+            console.warn(`DFS inner: skipping illegal move I${ev.from} → I${ev.to}`);
+            nextStep(); return;
+        }
+        if (_order && onHint) onHint('DFS exploring...', _order.totalVisited + ' nodes');
+        const node = intNet.nodes.find(n => n.id === ev.to);
+        if (!node) { nextStep(); return; }
+        innerRobot.moveToNode(node);
+        innerRobot.onArrival = nextStep;
+    }
+    nextStep();
+}
+// Outer DFS walk 
+function stepDfsExploreOuter(outerRobot, network, startId, goalId, onDone, onHint) {
+    const outerAdj = buildOuterAdj(network);
+    const gen = dfsPhysicalWalkGen(outerAdj, startId, goalId);
+    let visitedCount = 0;
+    TreeUI.init(startId, 'N', network.nodes, 'DFS');
+
+    function nextStep() {
+        const r = gen.next();
+        if (r.done) { onDone(); return; }
+        const ev = r.value;
+        if (ev.type === 'found' || ev.type === 'fail') { onDone(); return; }
+
+        if (!TreeUI.tree[ev.to]) {
+            TreeUI.addNode(ev.from, ev.to);
+            if (_order) _order.totalVisited++;
+        }
+        TreeUI.setCurrent(ev.to);
+        const isDirectNeighbor = (outerAdj[ev.from] || []).includes(ev.to);
+        if (!isDirectNeighbor) {
+            console.warn(`DFS outer: skipping illegal move N${ev.from} → N${ev.to}`);
+            nextStep(); return;
+        }
+        if (_order && onHint) onHint('DFS exploring...', _order.totalVisited + ' nodes');
+        const node = network.nodes[ev.to];
+        if (!node) { nextStep(); return; }
+        outerRobot.moveDirectTo(node.x, node.z, () => {
+            outerRobot.currentNodeId = ev.to;
+            nextStep();
+        });
+    }
+    nextStep();
+}
+
 // Inner A* walk 
 async function stepAstarExploreInner(innerRobot, intNet, startId, goalId, onDone, onHint) {
     startId = +startId;
@@ -441,7 +616,6 @@ async function stepAstarExploreInner(innerRobot, intNet, startId, goalId, onDone
     const fScore    = { [startId]: 0 };
     let   foundPath = null;
 
-    // ── Step-by-step A* search (robot does NOT move) ──────────────────
     while (openSet.length > 0) {
         openSet.sort((a, b) => (fScore[a] ?? Infinity) - (fScore[b] ?? Infinity));
         const current = +openSet.shift();
@@ -515,7 +689,6 @@ async function stepAstarExploreInner(innerRobot, intNet, startId, goalId, onDone
     }
     moveRobot();
 }
-
 // Outer A* walk 
 async function stepAstarExploreOuter(outerRobot, network, startId, goalId, onDone, onHint) {
     startId = +startId;
@@ -616,186 +789,9 @@ async function stepAstarExploreOuter(outerRobot, network, startId, goalId, onDon
     moveRobot();
 }
 
-// Inner BFS walk
-function stepBfsExploreInner(innerRobot, intNet, startId, goalId, onDone, onHint) {
-    const gen = bfsPhysicalWalkGen(intNet.adj, startId, goalId);
-    let moves = 0;
-    TreeUI.init(startId, 'I', intNet.nodes, 'BFS');
-
-    function nextStep() {
-        const r = gen.next();
-        if (r.done) { onDone(); return; }
-        const ev = r.value;
-        if (ev.type === 'found' || ev.type === 'fail') { onDone(); return; }
-
-        if (ev.isNew) TreeUI.addNode(ev.from, ev.to);
-        TreeUI.setCurrent(ev.to);
-        const isDirectNeighbor = (intNet.adj[ev.from] || []).includes(ev.to);
-        if (!isDirectNeighbor) {
-            console.warn(`BFS inner: skipping illegal move I${ev.from} → I${ev.to} (not a direct neighbor)`);
-            nextStep(); return;
-        }
-        if (_order) {
-            _order.totalSteps++;
-            if (onHint) onHint('BFS exploring...', _order.totalSteps + 's');
-        }
-        const node = intNet.nodes.find(n => n.id === ev.to);
-        if (!node) { nextStep(); return; }
-        innerRobot.moveToNode(node);
-        innerRobot.onArrival = nextStep;
-    }
-    nextStep();
-}
-
-// Outer BFS walk
-function stepBfsExploreOuter(outerRobot, network, startId, goalId, onDone, onHint) {
-    const outerAdj = buildOuterAdj(network);
-    const gen = bfsPhysicalWalkGen(outerAdj, startId, goalId);
-    let moves = 0;
-    TreeUI.init(startId, 'N', network.nodes, 'BFS');
-
-    function nextStep() {
-        const r = gen.next();
-        if (r.done) { onDone(); return; }
-        const ev = r.value;
-        if (ev.type === 'found' || ev.type === 'fail') { onDone(); return; }
-
-        if (ev.isNew) TreeUI.addNode(ev.from, ev.to);
-        TreeUI.setCurrent(ev.to);
-        const isDirectNeighbor = (outerAdj[ev.from] || []).includes(ev.to);
-        if (!isDirectNeighbor) {
-            console.warn(`BFS outer: skipping illegal move N${ev.from} → N${ev.to} (not a direct neighbor)`);
-            nextStep(); return;
-        }
-        if (_order) {
-            _order.totalSteps++;
-            if (onHint) onHint('BFS exploring...', _order.totalSteps + 's');
-        }
-        const node = network.nodes[ev.to];
-        if (!node) { nextStep(); return; }
-        outerRobot.moveDirectTo(node.x, node.z, () => {
-            outerRobot.currentNodeId = ev.to;
-            nextStep();
-        });
-    }
-    nextStep();
-}
-
-// Inner DFS walk 
-function stepDfsExploreInner(innerRobot, intNet, startId, goalId, onDone, onHint) {
-    const gen = dfsPhysicalWalkGen(intNet.adj, startId, goalId);
-    let visitedCount = 0;
-    TreeUI.init(startId, 'I', intNet.nodes, 'DFS');
-
-    function nextStep() {
-        const r = gen.next();
-        if (r.done) { onDone(); return; }
-        const ev = r.value;
-        if (ev.type === 'found' || ev.type === 'fail') { onDone(); return; }
-
-        if (!TreeUI.tree[ev.to]) {
-            TreeUI.addNode(ev.from, ev.to);
-            if (_order) _order.totalVisited++;
-        }
-        TreeUI.setCurrent(ev.to);
-        const isDirectNeighbor = (intNet.adj[ev.from] || []).includes(ev.to);
-        if (!isDirectNeighbor) {
-            console.warn(`DFS inner: skipping illegal move I${ev.from} → I${ev.to}`);
-            nextStep(); return;
-        }
-        if (_order && onHint) onHint('DFS exploring...', _order.totalVisited + ' nodes');
-        const node = intNet.nodes.find(n => n.id === ev.to);
-        if (!node) { nextStep(); return; }
-        innerRobot.moveToNode(node);
-        innerRobot.onArrival = nextStep;
-    }
-    nextStep();
-}
-
-// Outer DFS walk 
-function stepDfsExploreOuter(outerRobot, network, startId, goalId, onDone, onHint) {
-    const outerAdj = buildOuterAdj(network);
-    const gen = dfsPhysicalWalkGen(outerAdj, startId, goalId);
-    let visitedCount = 0;
-    TreeUI.init(startId, 'N', network.nodes, 'DFS');
-
-    function nextStep() {
-        const r = gen.next();
-        if (r.done) { onDone(); return; }
-        const ev = r.value;
-        if (ev.type === 'found' || ev.type === 'fail') { onDone(); return; }
-
-        if (!TreeUI.tree[ev.to]) {
-            TreeUI.addNode(ev.from, ev.to);
-            if (_order) _order.totalVisited++;
-        }
-        TreeUI.setCurrent(ev.to);
-        const isDirectNeighbor = (outerAdj[ev.from] || []).includes(ev.to);
-        if (!isDirectNeighbor) {
-            console.warn(`DFS outer: skipping illegal move N${ev.from} → N${ev.to}`);
-            nextStep(); return;
-        }
-        if (_order && onHint) onHint('DFS exploring...', _order.totalVisited + ' nodes');
-        const node = network.nodes[ev.to];
-        if (!node) { nextStep(); return; }
-        outerRobot.moveDirectTo(node.x, node.z, () => {
-            outerRobot.currentNodeId = ev.to;
-            nextStep();
-        });
-    }
-    nextStep();
-}
-
 
 // ==========================================================================================
-function astarPath(nodes, adj, startId, goalId) {
-    startId = +startId;
-    goalId = +goalId;
-
-    const getNode = id => nodes.find(n => n.id === +id);
-    const goalNode = getNode(goalId);
-    if (!goalNode) return null;
-
-    const openSet = [startId];
-    const cameFrom = {};
-    const gScore = { [startId]: 0 };
-    const fScore = { [startId]: 0 };
-
-    while (openSet.length > 0) {
-        openSet.sort((a, b) => (fScore[a] ?? Infinity) - (fScore[b] ?? Infinity));
-        const current = +openSet.shift(); 
-
-        if (current === goalId) {
-            const path = [current];
-            let curr = current;
-            while (cameFrom[curr] !== undefined) {
-                curr = +cameFrom[curr];
-                path.unshift(curr);
-            }
-            return path;
-        }
-
-        for (const nb of (adj[current] || [])) {
-            const neighbor = +nb; 
-            const currNode = getNode(current);
-            const nextNode = getNode(neighbor);
-            if (!currNode || !nextNode) continue;
-            const cost = Math.hypot(currNode.x - nextNode.x, currNode.z - nextNode.z);
-
-            const tentativeG = (gScore[current] ?? Infinity) + cost;
-            if (tentativeG < (gScore[neighbor] ?? Infinity)) {
-                cameFrom[neighbor] = current;
-                gScore[neighbor] = tentativeG;
-                const h = Math.hypot(goalNode.x - nextNode.x, goalNode.z - nextNode.z);
-                fScore[neighbor] = tentativeG + h;
-                if (!openSet.includes(neighbor)) openSet.push(neighbor);
-            }
-        }
-    }
-    return null;
-}
-
-
+// build adjacency list
 function buildOuterAdj(network) {
     const adj = {};
     network.nodes.forEach(n => adj[n.id] = []);
@@ -821,12 +817,14 @@ function makeOrderUI(network, robots, innerRobots) {
     const listEl = document.getElementById('ordersList');
     if (!locSel || !dstSel || !createBtn || !listEl) return;
 
+    // Fill select options
     function fillSel(el, items) { el.innerHTML = ''; items.forEach(it => { const o = document.createElement('option'); o.value = it.key; o.textContent = it.label; el.appendChild(o); }); }
     fillSel(locSel, LOCATION_LIST);
     fillSel(dstSel, DESTINATION_LIST);
 
     const STATUS_CLS = { 'pending': 'status-red', 'delivering': 'status-yellow', 'completed': 'status-green' };
 
+    // Display lable for time
     function setHint(m, activeRobot, timeStr) {
         if (hint) hint.textContent = m;
         window.__activeRobotForHint = activeRobot;
@@ -834,6 +832,7 @@ function makeOrderUI(network, robots, innerRobots) {
         window.__activeRobotTime = timeStr || '';
     }
 
+    // Rebuild order list
     function render() {
         if (!orders.length) { listEl.textContent = 'No orders yet.'; return; }
         listEl.innerHTML = orders.map(o => {
@@ -851,7 +850,6 @@ function makeOrderUI(network, robots, innerRobots) {
 
     const outerAdj = buildOuterAdj(network);
 
-    // ── Order Management ──────────────────────────────────────────────────
     function gateNodeFor(blockId) {
         const idx = window.BlockGateNodes && window.BlockGateNodes[blockId];
         return (idx !== undefined) ? network.nodes[idx] : null;
@@ -878,6 +876,7 @@ function makeOrderUI(network, robots, innerRobots) {
         } catch (e) { return null; }
     }
 
+    // New order creation
     function createOrder() {
         console.log("Create Order clicked");
         if (_order) { setHint('Order already in progress.'); return; }

@@ -1,11 +1,8 @@
-/**
- * robot.js
- * Handles robot meshes, classes, and the main animation loop.
- */
+function setShadows(obj){
+    obj.traverse(n=>{if(n.isMesh){n.castShadow=true;n.receiveShadow=true;}});
+}
 
-function setShadows(obj){obj.traverse(n=>{if(n.isMesh){n.castShadow=true;n.receiveShadow=true;}});}
-
-// ── Weathered metal texture ───────────────────────────────────────────────
+// ──   Robot Metal Texture ───────────────────────────────────────────────
 function makeWeatheredMetal(baseColor,rustColor){
     const size=256;const c=document.createElement('canvas');c.width=c.height=size;
     const ctx=c.getContext('2d');
@@ -16,7 +13,7 @@ function makeWeatheredMetal(baseColor,rustColor){
     const tex=new THREE.CanvasTexture(c);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1.2,1.2);return tex;
 }
 
-// ── Outer robot mesh (Wall-E style) ──────────────────────────────────────
+// ── Create Wall-E Shape ─────────────────────────────────────────────────
 function buildRobotMesh(){
     const g=new THREE.Group();
     const bodyTex=makeWeatheredMetal('#b88a2f','#6b3f16');
@@ -67,7 +64,7 @@ function buildRobotMesh(){
     g.scale.set(1.08,1.08,1.08);setShadows(g);return g;
 }
 
-// ── Outer DeliveryRobot ───────────────────────────────────────────────────
+// ── Outer Robot ─────────────────────────────────────────────────────────
 class DeliveryRobot{
     constructor(scene,startNode,id){
         this.scene=scene;this.id=id;this.speed=18;
@@ -83,22 +80,21 @@ class DeliveryRobot{
         scene.add(this.mesh);
     }
 
-    moveToNode(node){
-        this.targetNodeId=node.id;this.waitingForInput=false;
-        this.stopType=null;
-    }
-
-    // Direct move: robot goes straight to (x,z) ignoring triangle markers
     moveDirectTo(x,z,onDone){
         this._directX=x;this._directZ=z;this._directDone=onDone||null;
         this.targetNodeId=null;this.waitingForInput=false;this.stopType=null;
     }
 
-    // Legacy coord move (kept for backward compat)
-    moveTo(x,z,onDone){ this.moveDirectTo(x,z,onDone); }
+    moveTo(x,z,onDone){ 
+        this.moveDirectTo(x,z,onDone); 
+    }
+
+    moveToNode(node){
+        this.targetNodeId=node.id;this.waitingForInput=false;
+        this.stopType=null;
+    }
 
     update(delta,network,onStop){
-        // ── Direct mode (auto, no triangle stops) ────────────────────────
         if(this._directX!==null&&this._directZ!==null){
             const pos=this.mesh.position;
             const dx=this._directX-pos.x,dz=this._directZ-pos.z;
@@ -117,7 +113,6 @@ class DeliveryRobot{
             return;
         }
 
-        // ── Node-targeted mode ────────────────────────────────────────────
         if(this.targetNodeId===null)return;
         const target=network&&network.nodes?network.nodes[this.targetNodeId]:null;
         if(!target)return;
@@ -138,7 +133,6 @@ class DeliveryRobot{
         pos.x+=dx/dist*step;pos.z+=dz/dist*step;
         this.mesh.lookAt(pos.x + dx, pos.y, pos.z + dz);
 
-        // Triangle stops only in manual outer phase
         if(window.__solveMode==='manual'&&network&&network.triangles&&network.triangles.length){
             const prevX=pos.x-dx/dist*step,prevZ=pos.z-dz/dist*step;
             const isHoriz=Math.abs(target.z-prevZ)<Math.abs(target.x-prevX);
@@ -166,7 +160,7 @@ class DeliveryRobot{
     }
 }
 
-// ── Inner block robot (blue, moves on internal graph) ────────────────────
+// ── Inner Robot ─────────────────────────────────────────────────────────
 class InnerDeliveryRobot{
     constructor(scene,blockId,startNode){
         this.scene=scene;this.blockId=blockId;
@@ -182,6 +176,7 @@ class InnerDeliveryRobot{
         scene.add(this.mesh);
     }
 
+    // Build Innier Robot
     _buildMesh(){
         const g=new THREE.Group();
         const matBody=new THREE.MeshStandardMaterial({color:0x2a72c3,roughness:0.4,metalness:0.7});
@@ -234,16 +229,14 @@ class InnerDeliveryRobot{
     }
 }
 
-// ── initRobots ────────────────────────────────────────────────────────────
+// ── initRobots ──────────────────────────────────────────────────────────
 function initRobots(scene){
     if(!window.PathNetwork||!window.PathNetwork.nodes.length)return;
     const network=window.PathNetwork;
 
-    // Spawn outer robots at node 1 (9.25,-9.25) — center area
     const robot1=new DeliveryRobot(scene,network.nodes[1],1);
     const robots=[robot1];
 
-    // Spawn one inner robot per block at its gate node
     const innerRobots={};
     ['A','B','C','D'].forEach(bid=>{
         const intNodes=window.InternalNodes[bid];
@@ -256,16 +249,14 @@ function initRobots(scene){
 
     makeOrderUI(network,robots,innerRobots);
 
-    // ── Click handler (manual mode) ────────────────────────────────────────
-    const MAX_MOVE_DIST = 30; // world units — ~1 road gap; tune as needed
+    const MAX_MOVE_DIST = 30; 
     const raycaster = new THREE.Raycaster();
     const mouse     = new THREE.Vector2();
-    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // flat y=0
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); 
     const groundPoint = new THREE.Vector3();
     const runtime   = window.__mapRuntime;
     const dom       = runtime && runtime.getRendererDom ? runtime.getRendererDom() : null;
 
-    // Phase sets — determine which robot the click should control
     const INNER_SRC_PHASES = new Set(['inner_pickup', 'inner_to_gate']);
     const INNER_DST_PHASES = new Set(['dst_inner_to_gate', 'inner_deliver']);
     const OUTER_PHASES     = new Set(['outer_to_src', 'outer_to_dst']);
@@ -278,22 +269,18 @@ function initRobots(scene){
             const phase = ui.getCurrentPhase();
             if(!phase) return;
 
-            // ── Convert mouse → NDC ───────────────────────────────────────
             const rect = dom.getBoundingClientRect();
             mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
             mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
             raycaster.setFromCamera(mouse, runtime.getActiveCamera());
 
-            // ══ OUTER ROBOT (main road phases) ═══════════════════════════
             if(OUTER_PHASES.has(phase)){
                 const outerRobot = robots[0];
                 if(!outerRobot.waitingForInput) return;
 
-                // Same approach as inner robot: click anywhere → find nearest node
                 raycaster.ray.intersectPlane(groundPlane, groundPoint);
                 if(!groundPoint) return;
 
-                // Find nearest outer network node to the clicked point
                 let nearestNode = null, nearestDist = Infinity;
                 network.nodes.forEach(n => {
                     const d = Math.hypot(n.x - groundPoint.x, n.z - groundPoint.z);
@@ -305,7 +292,6 @@ function initRobots(scene){
                     return;
                 }
 
-                // Adjacency check — only move along real road edges, not across grass
                 const outerConnected = network.edges.some(e =>
                     (e.from === outerRobot.currentNodeId && e.to   === nearestNode.id) ||
                     (e.to   === outerRobot.currentNodeId && e.from === nearestNode.id)
@@ -324,7 +310,6 @@ function initRobots(scene){
                 return;
             }
 
-            // ══ INNER ROBOT (block phases) ════════════════════════════════
             if(INNER_SRC_PHASES.has(phase) || INNER_DST_PHASES.has(phase)){
                 raycaster.ray.intersectPlane(groundPlane, groundPoint);
                 if(!groundPoint) return;
@@ -349,7 +334,6 @@ function initRobots(scene){
                     return;
                 }
 
-                // Adjacency check — only move along real inner path edges
                 const innerConnected = (intNet.adj[innerRobot.currentNodeId] || []).includes(nearestNode.id);
                 if(!innerConnected){
                     ui.setStatus('Must move to a directly connected node.');
@@ -384,7 +368,6 @@ function initRobots(scene){
         }));
         Object.values(window.InnerRobots||{}).forEach(ir=>ir.update(delta));
 
-        // Update floating status label
         const activeRob = window.__activeRobotForHint;
         const label = document.getElementById('robot-status-label');
         if (activeRob && activeRob.mesh && label && window.__mapRuntime) {
@@ -398,7 +381,7 @@ function initRobots(scene){
                 const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
                 const y = (-(pos.y * 0.5) + 0.5) * window.innerHeight;
                 
-                if (pos.z < 1) { // Only show if in front of camera
+                if (pos.z < 1) {
                     label.style.display = 'block';
                     label.style.left = `${x}px`;
                     label.style.top = `${y}px`;

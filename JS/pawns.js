@@ -1,6 +1,3 @@
-// ── pawns.js ───────────────────────────────────────────────────
-// Scene entities (pawns): lamps, building placement, and houses.
-
 (function initPawnEntities(global) {
     function placeBuildings(scene, block, cfg) {
         cfg.DICE5.forEach(s => {
@@ -21,8 +18,6 @@
         });
     }
 
-    // ── Dispatch table: each house gets its own dedicated builder ──
-    // To change a specific house, edit its houseXY.js file directly.
     const HOUSE_BUILDERS = {
         A: [buildHouseA1, buildHouseA2, buildHouseA3],
         B: [buildHouseB1, buildHouseB2, buildHouseB3],
@@ -99,7 +94,6 @@
         return sprite;
     }
 
-    // Label heights per building type (tune if models are taller/shorter)
     const LABEL_Y = { house: 18, restaurant: 22, cafe: 18 };
 
     function buildApartmentLabels(scene, cfg) {

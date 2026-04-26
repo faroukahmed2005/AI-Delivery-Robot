@@ -1,5 +1,3 @@
-// ── base.js ── Camera + Materials + World Builder
-
 const CFG = {
     BLOCK: 64, CAR_W: 8, SWK_W: 4, ROB_W: 2.5,
     HALF_ROAD: 10.5, GAP: 21, OFF: 42.5,
