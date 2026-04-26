@@ -1,5 +1,3 @@
-// ── paths.js ── Roads, Sidewalks, Rail Lanes, Lamps
-
 const PATH_SURFACE_Y = 0.282;
 const RAIL_CENTER_Y  = PATH_SURFACE_Y + 0.05;
 const MARKER_Y       = PATH_SURFACE_Y + 0.1;

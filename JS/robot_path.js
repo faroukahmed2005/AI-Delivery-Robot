@@ -1,10 +1,7 @@
-// robot_path.js
-
 const _PATH_SURFACE_Y = (window.PATH_SURFACE_Y !== undefined) ? window.PATH_SURFACE_Y : 0.282;
 const _RAIL_CENTER_Y  = (window.RAIL_CENTER_Y  !== undefined) ? window.RAIL_CENTER_Y  : _PATH_SURFACE_Y + 0.05;
 const _MARKER_Y       = (window.MARKER_Y        !== undefined) ? window.MARKER_Y        : _PATH_SURFACE_Y + 0.1;
 
-// ── Outer waypoints: 0-35 intersections, 36-39 gate stops on inner rails
 const WAYPOINTS = [
     /* 0*/[9.25,9.25],  /* 1*/[9.25,-9.25],  /* 2*/[-9.25,9.25],  /* 3*/[-9.25,-9.25],
     /* 4*/[9.25,-94.25],/* 5*/[9.25,-75.75], /* 6*/[-9.25,-94.25],/* 7*/[-9.25,-75.75],
@@ -15,47 +12,31 @@ const WAYPOINTS = [
     /*24*/[-94.25,9.25],/*25*/[-94.25,-9.25],/*26*/[-75.75,9.25], /*27*/[-75.75,-9.25],
     /*28*/[-94.25,-94.25],/*29*/[-94.25,-75.75],/*30*/[-75.75,-94.25],/*31*/[-75.75,-75.75],
     /*32*/[-94.25,94.25],/*33*/[-94.25,75.75],/*34*/[-75.75,94.25],/*35*/[-75.75,75.75],
-    // Gate stops on inner rails (z=±42.5 on x=±9.25 lines)
     /*36*/[-9.25,-42.5], // Block A gate (left blocks, x=-9.25 rail)
     /*37*/[9.25,-42.5],  // Block B gate (right blocks, x=+9.25 rail)
     /*38*/[-9.25,42.5],  // Block C gate
     /*39*/[9.25,42.5],   // Block D gate
 ];
 
-// Explicit outer path edges (each rail line, defined individually)
 const OUTER_EDGES = [
-    // z=9.25 horizontal line
     [24,26],[26,2],[2,0],[0,14],[14,12],
-    // z=-9.25 horizontal line
     [25,27],[27,3],[3,1],[1,15],[15,13],
-    // z=75.75 horizontal line
     [33,35],[35,11],[11,9],[9,23],[23,21],
-    // z=94.25 horizontal line
     [32,34],[34,10],[10,8],[8,22],[22,20],
-    // z=-75.75 horizontal line
     [29,31],[31,7],[7,5],[5,19],[19,17],
-    // z=-94.25 horizontal line
     [28,30],[30,6],[6,4],[4,18],[18,16],
-    // x=9.25 vertical line
     [4,5],[5,1],[1,0],[0,9],[9,8],
-    // x=-9.25 vertical line
     [6,7],[7,3],[3,2],[2,11],[11,10],
-    // x=75.75 vertical line
     [18,19],[19,15],[15,14],[14,23],[23,22],
-    // x=94.25 vertical line
     [16,17],[17,13],[13,12],[12,21],[21,20],
-    // x=-75.75 vertical line
     [30,31],[31,27],[27,26],[26,35],[35,34],
-    // x=-94.25 vertical line
     [28,29],[29,25],[25,24],[24,33],[33,32],
-    // Gate nodes connect into their rail segments
     [3,36],[36,7],   // Block A gate on x=-9.25
     [1,37],[37,5],   // Block B gate on x=+9.25
     [2,38],[38,11],  // Block C gate on x=-9.25
     [0,39],[39,9],   // Block D gate on x=+9.25
 ];
 
-// Gate info: which outer node id is the gate for each block
 const BLOCK_GATE_NODES = { A:36, B:37, C:38, D:39 };
 
 const TRIANGLE_MARKERS = [];
@@ -75,7 +56,7 @@ const APARTMENT_DELIVERY_STOPS = [
     { key:'aptD3',label:'D3',x:-75.75,z:-94.25},
 ];
 
-
+// Bulid the internal net
 function generateInternalGraph() {
     const IN = {A:[], B:[], C:[], D:[]};
     const IE = {A:[], B:[], C:[], D:[]};
@@ -84,44 +65,44 @@ function generateInternalGraph() {
         const id = b.id;
         if (id === 'A' || id === 'C') {
             const dn = [
-                {id:0, dx:10, dz:1.5},    // Gate junction
-                {id:1, dx:28, dz:1.5},    // Gate endpoint (stops just inside the block)
-                {id:2, dx:10, dz:10},     // NE
-                {id:3, dx:-10, dz:10},    // NW
-                {id:4, dx:-10, dz:-10},   // SW
-                {id:5, dx:10, dz:-10},    // SE
-                {id:6, dx:20, dz:10},     // NE branch 1
-                {id:7, dx:20, dz:20},     // NE branch end
-                {id:8, dx:-19.5, dz:10},  // NW branch 1
-                {id:9, dx:-19.5, dz:19.25},// NW branch end
-                {id:10, dx:-19.5, dz:-10},// SW branch 1
-                {id:11, dx:-19.5, dz:-15},// SW branch end
-                {id:12, dx:19.5, dz:-10}, // SE branch 1
-                {id:13, dx:19.5, dz:-19.25} // SE branch end
+                {id:0, dx:10, dz:1.5},    
+                {id:1, dx:28, dz:1.5},    
+                {id:2, dx:10, dz:10},     
+                {id:3, dx:-10, dz:10},    
+                {id:4, dx:-10, dz:-10},   
+                {id:5, dx:10, dz:-10},    
+                {id:6, dx:20, dz:10},     
+                {id:7, dx:20, dz:20},     
+                {id:8, dx:-19.5, dz:10},  
+                {id:9, dx:-19.5, dz:19.25},
+                {id:10, dx:-19.5, dz:-10},
+                {id:11, dx:-19.5, dz:-15},
+                {id:12, dx:19.5, dz:-10}, 
+                {id:13, dx:19.5, dz:-19.25} 
             ];
             IE[id] = [[5,0],[0,2],[4,3],[3,2],[4,5],[0,1],[2,6],[6,7],[3,8],[8,9],[4,10],[10,11],[5,12],[12,13]];
             IN[id] = dn.map(n => ({id: n.id, x: b.x + n.dx, z: b.z + n.dz}));
             BS[id] = { restaurant: 9, cafe: 7, house1: 11, house2: 13, house3: 4, gate: 1 };
         } else {
             const dn = [
-                {id:0, dx:-10, dz:1.5},   // Gate junction
-                {id:1, dx:-28, dz:1.5},   // Gate endpoint (stops just inside the block)
-                {id:2, dx:10, dz:15},     // NE
-                {id:3, dx:-10, dz:15},    // NW
-                {id:4, dx:-10, dz:-15},   // SW
-                {id:5, dx:10, dz:-15},    // SE
-                {id:6, dx:-10, dz:-10},   // SW branch junction
-                {id:7, dx:-20, dz:-10},   // SW branch 1
-                {id:8, dx:-20, dz:-20},   // SW branch end
-                {id:9, dx:-10, dz:10},    // NW branch junction
-                {id:10, dx:-20, dz:10},   // NW branch 1
-                {id:11, dx:-20, dz:20},   // NW branch end
-                {id:12, dx:10, dz:-10},   // SE branch junction
-                {id:13, dx:20, dz:-10},   // SE branch 1
-                {id:14, dx:20, dz:-20},   // SE branch end
-                {id:15, dx:10, dz:10},    // NE branch junction
-                {id:16, dx:20, dz:10},    // NE branch 1
-                {id:17, dx:20, dz:20}     // NE branch end
+                {id:0, dx:-10, dz:1.5},   
+                {id:1, dx:-28, dz:1.5},   
+                {id:2, dx:10, dz:15},     
+                {id:3, dx:-10, dz:15},    
+                {id:4, dx:-10, dz:-15},   
+                {id:5, dx:10, dz:-15},    
+                {id:6, dx:-10, dz:-10},   
+                {id:7, dx:-20, dz:-10},   
+                {id:8, dx:-20, dz:-20},   
+                {id:9, dx:-10, dz:10},    
+                {id:10, dx:-20, dz:10},  
+                {id:11, dx:-20, dz:20},   
+                {id:12, dx:10, dz:-10},   
+                {id:13, dx:20, dz:-10},   
+                {id:14, dx:20, dz:-20},   
+                {id:15, dx:10, dz:10},    
+                {id:16, dx:20, dz:10},    
+                {id:17, dx:20, dz:20}     
             ];
             IE[id] = [[4,6],[6,0],[0,9],[9,3], [5,12],[12,15],[15,2], [3,2],[4,5], [0,1], [6,7],[7,8], [9,10],[10,11], [12,13],[13,14], [15,16],[16,17]];
             IN[id] = dn.map(n => ({id: n.id, x: b.x + n.dx, z: b.z + n.dz}));
@@ -131,6 +112,7 @@ function generateInternalGraph() {
     return {IN, IE, BS};
 }
 
+// Build the entire path system
 function buildRobotPath(scene) {
     const {IN, IE, BS} = generateInternalGraph();
     window.InternalNodes  = IN;
@@ -145,7 +127,6 @@ function buildRobotPath(scene) {
     window.PathNetwork    = network;
     window.BlockGateNodes = BLOCK_GATE_NODES;
 
-    // Visualization: Draw internal nodes and edges
     const nodeMat = new THREE.MeshBasicMaterial({color: 0x00ffcc});
     const edgeMat = new THREE.LineBasicMaterial({color: 0x00aaff, linewidth: 2});
     
@@ -153,7 +134,6 @@ function buildRobotPath(scene) {
         const nodes = IN[b.id];
         const edges = IE[b.id];
         
-        // Draw nodes
         nodes.forEach(n => {
             const mat = nodeMat.clone();
             const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), mat);
@@ -163,7 +143,6 @@ function buildRobotPath(scene) {
             scene.add(sphere);
         });
 
-        // Draw edges
         edges.forEach(([fId, tId]) => {
             const f = nodes.find(n => n.id === fId);
             const t = nodes.find(n => n.id === tId);
@@ -177,7 +156,6 @@ function buildRobotPath(scene) {
     });
 }
 
-// ── Internal block visuals ────────────────────────────────────────────────
 const INT_RAIL_MATS = {
     metallic: new THREE.MeshStandardMaterial({color:0x707880,metalness:0.9,roughness:0.35}),
     ties:     new THREE.MeshStandardMaterial({color:0x2f2f2f,metalness:0.45,roughness:0.7}),
@@ -261,7 +239,6 @@ function buildInternalBlockPaths(scene){
     });
 }
 
-// ── Arrow helper ──────────────────────────────────────────────────────────
 function addArrow(scene,x,z,rotY,opts){
     const baseColor=opts&&opts.delivery?0x3ecf7a:0xf2c94c;
     const emissive =opts&&opts.delivery?0x0a3020:0x3a2a00;
@@ -277,16 +254,11 @@ function addArrow(scene,x,z,rotY,opts){
     return m;
 }
 
-// ── Gate arrows: ONE per block, centered on gate, on the outer rail ───────
 function paintGateArrows(scene){
-    // Use positions from walls.js __GateMarkers if available, otherwise use BLOCK_GATE_NODES positions
     ['A','B','C','D'].forEach(id=>{
         const gateNodeIdx = BLOCK_GATE_NODES[id];
         const [wx,wz] = WAYPOINTS[gateNodeIdx];
-        // Direction: blocks A,C have gate on west side of rail (streetDir +1→arrow points east into block)
-        //            blocks B,D have gate on east side of rail (streetDir -1→arrow points west into block)
         const rotY = (id==='A'||id==='C') ? Math.PI/2 : -Math.PI/2;
-        // Use walls.js marker if available for x position, keep z from waypoint
         const gm = window.__GateMarkers && window.__GateMarkers[id];
         const ax = gm ? gm.x : wx;
         const az = gm ? gm.z : wz;
@@ -295,13 +267,11 @@ function paintGateArrows(scene){
             x: ax, z: az,
             r: rotY, mesh: null,
             gateKey: `gate${id}`, blockId: id,
-            // store the outer network node id so outer robot knows where to stop
             outerNodeId: gateNodeIdx,
         });
     });
 }
 
-// ── Apartment arrows ──────────────────────────────────────────────────────
 function paintApartmentArrows(scene){
     APARTMENT_DELIVERY_STOPS.forEach(apt=>{
         const rotY=apt.x>0?-Math.PI/2:Math.PI/2;
@@ -313,10 +283,8 @@ function paintApartmentArrows(scene){
     });
 }
 
-// ── Outer waypoints (ring markers at intersections + gate stops) ──────────
 function buildWaypoints(scene){
     const mat=new THREE.MeshStandardMaterial({color:0x58f58a,emissive:0x0f3d1e,metalness:0.35,roughness:0.45});
-    // Gate stop marker is slightly different color
     const gateNodeIds = new Set(Object.values(BLOCK_GATE_NODES));
     const gateMat=new THREE.MeshStandardMaterial({color:0xf2c94c,emissive:0x3a2000,metalness:0.35,roughness:0.45});
     return WAYPOINTS.map(([x,z],idx)=>{
@@ -331,7 +299,6 @@ function buildWaypoints(scene){
     });
 }
 
-// ── Outer path network (explicit edges, no auto-connect loop) ─────────────
 function buildPathNetwork(scene,nodes){
     const segmentMeshes=[];
     const segMat=new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:0.12});
