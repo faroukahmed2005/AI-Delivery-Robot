@@ -1,9 +1,8 @@
 // houseB1.js — Block B, House 1
-// Modify scale, rotY, targetSize, and modelPath freely for this house.
 
 const HOUSE_B1 = {
     modelPath:  './models/modern_home1.glb',
-    rotY:       Math.PI/1.16 + (Math.PI ),  // opposite of B-C (cafe2) which has rotY = 0
+    rotY:       Math.PI/1.16 + (Math.PI ), 
     targetSize: 35,
     yOffset:    0,
 };

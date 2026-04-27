@@ -1,11 +1,10 @@
 // houseA1.js — Block A, House 1
-// Modify scale, rotY, targetSize, and modelPath freely for this house.
 
 const HOUSE_A1 = {
     modelPath:  './models/modern_house.glb',
     rotY:       Math.PI*10.50+(Math.PI/2),
-    targetSize: 15,           // auto-scales so width/depth fits this size
-    yOffset:    0,            // extra vertical nudge (0 = sit on ground)
+    targetSize: 15,           
+    yOffset:    0,            
 };
 
 let _hA1_gltf = null;

@@ -1,5 +1,4 @@
 // houseA2.js — Block A, House 2
-// Modify scale, rotY, targetSize, and modelPath freely for this house.
 
 const HOUSE_A2 = {
     modelPath:  './models/modern_home1.glb',
