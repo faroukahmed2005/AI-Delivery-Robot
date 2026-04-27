@@ -1,19 +1,12 @@
-/**
- * grass.js
- * Procedural grass texture generation and lawn building.
- */
-
 function makeGrassTexture() {
     const size = 512;
     const c = document.createElement('canvas');
     c.width = c.height = size;
     const ctx = c.getContext('2d');
     
-    // Base green
     ctx.fillStyle = '#3a6b2a';
     ctx.fillRect(0, 0, size, size);
     
-    // Add noise and grass blade variations
     for (let i = 0; i < 15000; i++) {
         const x = Math.random() * size;
         const y = Math.random() * size;
@@ -29,7 +22,6 @@ function makeGrassTexture() {
         ctx.fillRect(x, y, w, h);
     }
     
-    // Subtle organic patches
     for (let i = 0; i < 40; i++) {
         const x = Math.random() * size;
         const y = Math.random() * size;
@@ -45,7 +37,6 @@ function makeGrassTexture() {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(4, 4);
     
-    // Create a bump map from the same canvas (grayscale version)
     const bumpC = document.createElement('canvas');
     bumpC.width = bumpC.height = size;
     const bCtx = bumpC.getContext('2d');
@@ -58,13 +49,10 @@ function makeGrassTexture() {
     return { map: tex, bumpMap: bumpTex };
 }
 
-/**
- * Creates 3D grass blades using InstancedMesh for high performance.
- */
 function createBlades(scene, x, z, width, length) {
     const count = 4000;
     const bladeGeo = new THREE.PlaneGeometry(0.15, 0.4, 1, 1);
-    bladeGeo.translate(0, 0.2, 0); // Pivot at bottom
+    bladeGeo.translate(0, 0.2, 0); 
     
     const bladeMat = new THREE.MeshStandardMaterial({
         color: 0x4a8a2a,
@@ -83,7 +71,7 @@ function createBlades(scene, x, z, width, length) {
         
         dummy.position.set(x + px, 0.03, z + pz);
         dummy.rotation.y = Math.random() * Math.PI;
-        dummy.rotation.x = (Math.random() - 0.5) * 0.2; // Slight tilt
+        dummy.rotation.x = (Math.random() - 0.5) * 0.2; 
         
         const scale = 0.5 + Math.random() * 1.5;
         dummy.scale.set(scale, scale, scale);
@@ -91,7 +79,6 @@ function createBlades(scene, x, z, width, length) {
         dummy.updateMatrix();
         mesh.setMatrixAt(i, dummy.matrix);
         
-        // Vary color slightly
         const col = new THREE.Color().setHSL(0.25 + Math.random() * 0.1, 0.5, 0.3 + Math.random() * 0.2);
         mesh.setColorAt(i, col);
     }
@@ -103,9 +90,6 @@ function createBlades(scene, x, z, width, length) {
     scene.add(mesh);
 }
 
-/**
- * Creates a grass lawn with 3D blades and adds it to the scene.
- */
 window.createGrassLawn = function(scene, x, z, width, length, y = 0.03) {
     if (!window.__grassAssets) {
         const textures = makeGrassTexture();
@@ -130,7 +114,6 @@ window.createGrassLawn = function(scene, x, z, width, length, y = 0.03) {
     mesh.receiveShadow = true;
     scene.add(mesh);
     
-    // Add 3D blades
     createBlades(scene, x, z, width, length);
     
     return mesh;

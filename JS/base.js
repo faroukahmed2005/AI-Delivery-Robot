@@ -43,7 +43,7 @@ function initMats() {
 }
 initMats();
 
-// ── Top-down camera controls
+// ── camera controls
 function makeTopDownControls(cam, el) {
     const state = { dragging: false, last: { x: 0, y: 0 }, active: false };
     el.addEventListener('mousedown', e => {
